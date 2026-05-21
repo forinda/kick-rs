@@ -41,11 +41,12 @@ Build state:
 
 What does **not** yet exist:
 
-- `examples/` directory — the users-api demo lands in Phase 2 next
-- `cargo rustkick` CLI — placeholder binary
+- `cargo rustkick` CLI — placeholder binary (Phase 5)
 - `#[service]` / `#[handler]` / `#[get]` proc-macros — Phase 3
 - Context contributors with typed `Deps` — Phase 4
-- DB adapter (sqlx/diesel/sea-orm) — explicitly out of scope; lives in user code
+- DB adapter (sqlx/diesel/sea-orm) — explicitly out of scope; lives in
+  user code. See [`examples/users-api`](./examples/users-api) for the
+  pattern adopters follow.
 
 See [`SPEC.md`](./SPEC.md) for the design, [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 for internals, and the [phase roadmap](./SPEC.md#11-implementation-phases)
@@ -132,7 +133,7 @@ Top-level summary:
 |-------|-----------------------------------------------------------------|----------|
 | 0     | Spec + architecture documents, workspace scaffold               | **Done** |
 | 1     | `rustkick-core` Container/Module/Adapter + `rustkick-http` axum | **Done** |
-| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter   | Pending  |
+| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter   | **Done** |
 | 3     | `rustkick-macros`: `#[service]` / `#[handler]` / `#[get]` sugar | Pending  |
 | 4     | Context contributors with typed tuple `Deps`                    | Pending  |
 | 5     | Adapter shutdown polish, OpenAPI, auth, CLI                     | Pending  |
