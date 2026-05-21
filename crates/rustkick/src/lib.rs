@@ -21,7 +21,7 @@
 // ── Core (transport-agnostic types) ────────────────────────────────────
 pub use rustkick_core::{
     define_adapter, define_plugin, Adapter, AdapterContext, AdapterDef, AdapterFactory,
-    BuildContext, ContextContributor, Container, ContainerBuilder, Introspect, IntrospectionKind,
+    BuildContext, Container, ContainerBuilder, ContextContributor, Introspect, IntrospectionKind,
     IntrospectionSnapshot, KickError, KickResult, Module as CoreModule,
     ModuleBuilder as CoreModuleBuilder, Plugin, PluginDef, PluginFactory, ProviderSpec, Scope,
     Token,

@@ -36,7 +36,9 @@ impl<T: 'static + Send + Sync> Clone for Inject<T> {
 
 impl<T: 'static + Send + Sync> std::fmt::Debug for Inject<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Inject").field("type", &std::any::type_name::<T>()).finish()
+        f.debug_struct("Inject")
+            .field("type", &std::any::type_name::<T>())
+            .finish()
     }
 }
 

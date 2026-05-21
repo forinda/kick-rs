@@ -41,7 +41,10 @@ pub struct Container {
 impl std::fmt::Debug for Container {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Container")
-            .field("registered_types", &self.inner.type_names.values().collect::<Vec<_>>())
+            .field(
+                "registered_types",
+                &self.inner.type_names.values().collect::<Vec<_>>(),
+            )
             .finish()
     }
 }
@@ -116,7 +119,10 @@ impl Container {
     /// Whether a provider for `T` is registered.
     pub fn contains<T: 'static + Send + Sync>(&self) -> bool {
         let key = TypeId::of::<T>();
-        self.inner.singletons.read().is_ok_and(|m| m.contains_key(&key))
+        self.inner
+            .singletons
+            .read()
+            .is_ok_and(|m| m.contains_key(&key))
             || self.inner.singleton_factories.contains_key(&key)
             || self.inner.transient_factories.contains_key(&key)
     }
@@ -223,7 +229,10 @@ impl ContainerBuilder {
 fn ambiguous_bind<T: 'static>() -> KickError {
     KickError::new(
         "RK_E_AMBIGUOUS_BIND",
-        format!("two providers registered for `{}`", std::any::type_name::<T>()),
+        format!(
+            "two providers registered for `{}`",
+            std::any::type_name::<T>()
+        ),
     )
     .with_hint("each scope+type pair must be unique; use `Token<T>` for a second binding")
     .with_context("type", std::any::type_name::<T>())
@@ -276,7 +285,11 @@ mod tests {
         let _ = c.resolve::<Greeter>();
         let _ = c.resolve::<Greeter>();
         let _ = c.resolve::<Greeter>();
-        assert_eq!(CALLS.load(Ordering::SeqCst), 1, "singleton factory must run exactly once");
+        assert_eq!(
+            CALLS.load(Ordering::SeqCst),
+            1,
+            "singleton factory must run exactly once"
+        );
     }
 
     #[test]
@@ -289,7 +302,9 @@ mod tests {
             .singleton(Db("postgres://localhost".into()))
             .singleton_factory::<Repo, _>(|c| {
                 let db = c.resolve::<Db>();
-                Arc::new(Repo { db_url: db.0.clone() })
+                Arc::new(Repo {
+                    db_url: db.0.clone(),
+                })
             })
             .build()
             .unwrap();
@@ -312,8 +327,14 @@ mod tests {
 
         let a = c.resolve::<Ticket>();
         let b = c.resolve::<Ticket>();
-        assert_ne!(a.0, b.0, "transients must produce a fresh value each resolve");
-        assert!(!Arc::ptr_eq(&a, &b), "transients must not share Arc storage");
+        assert_ne!(
+            a.0, b.0,
+            "transients must produce a fresh value each resolve"
+        );
+        assert!(
+            !Arc::ptr_eq(&a, &b),
+            "transients must not share Arc storage"
+        );
     }
 
     #[test]
