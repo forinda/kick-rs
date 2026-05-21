@@ -1,0 +1,17 @@
+[package]
+name        = "rustkick-macros"
+version     = "0.0.0"
+description = "Opt-in proc-macro sugar for rustkick (#[service], #[handler], #[get], ...)"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn         = { workspace = true }
+quote       = { workspace = true }
+proc-macro2 = { workspace = true }
