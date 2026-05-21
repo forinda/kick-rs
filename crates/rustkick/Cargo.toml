@@ -1,0 +1,26 @@
+[package]
+name        = "rustkick"
+version     = "0.0.0"
+description = "Module-driven web framework for Rust — a port of KickJS on axum"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+readme      = "../../README.md"
+
+[features]
+default = []
+# Pull in the opt-in proc-macro sugar (#[service], #[handler], #[get], ...)
+macros  = ["dep:rustkick-macros"]
+# Pull in env loader + `define_env!` declarative macro.
+config  = ["dep:rustkick-config"]
+# Pull in typed asset manifest.
+assets  = ["dep:rustkick-assets"]
+
+[dependencies]
+rustkick-core   = { workspace = true }
+rustkick-http   = { workspace = true }
+rustkick-macros = { workspace = true, optional = true }
+rustkick-config = { workspace = true, optional = true }
+rustkick-assets = { workspace = true, optional = true }

@@ -1,0 +1,13 @@
+[package]
+name        = "rustkick-config"
+version     = "0.0.0"
+description = "Env loader + ConfigService for rustkick — Zod-style typed env validation"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[dependencies]
+rustkick-core = { workspace = true }
+serde         = { workspace = true }

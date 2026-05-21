@@ -1,0 +1,7 @@
+# Track stable — the workspace MSRV is declared in Cargo.toml as
+# `rust-version = "1.78"`, which Cargo enforces independently. Pinning a
+# specific channel here would force rustup to install that exact version
+# even on machines that already have a newer stable toolchain.
+[toolchain]
+channel    = "stable"
+components = ["rustfmt", "clippy"]

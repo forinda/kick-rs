@@ -1,0 +1,25 @@
+# Cargo build artifacts
+target/
+**/target/
+
+# Cargo lock — keep at workspace root, ignore inside child crates
+crates/**/Cargo.lock
+examples/**/Cargo.lock
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+.DS_Store
+
+# Env files (never commit secrets)
+.env
+.env.*.local
+*.env.local
+
+# Coverage
+*.profraw
+coverage/
+tarpaulin-report.html
+lcov.info
