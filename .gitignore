@@ -2,9 +2,10 @@
 target/
 **/target/
 
-# Cargo lock — keep at workspace root, ignore inside child crates
+# Cargo lock — keep at workspace root and at the root of each example
+# (each example is a binary, so committing its lockfile is the
+# convention). Ignore lockfiles only inside library subcrates.
 crates/**/Cargo.lock
-examples/**/Cargo.lock
 
 # IDE / editor
 .idea/

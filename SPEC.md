@@ -1072,10 +1072,13 @@ cargo run
 
       45/45 tests passing (12 container · 9 module · 4 mount_sort · 6 adapter · 5 plugin · 9 http)
 
-### Phase 2 — Sample app
-- [ ] `examples/users-api` runs end-to-end against a real Postgres
-       (sqlx adapter lives inside the example, not in framework crates)
-- [ ] `rustkick-config` (env loader)
+### Phase 2 — Sample app ✅ Done
+- [x] `examples/users-api` runs end-to-end against a real Postgres
+       (sqlx wiring lives inside the example, not in framework crates).
+       Reversible sqlx-cli migrations applied in-process at startup
+       via `sqlx::migrate!()`.
+- [ ] `rustkick-config` (env loader) — deferred; example does its own
+       trivial env load to stay self-contained.
 
 ### Phase 3 — Macros sugar
 - [ ] `#[service]`, `#[handler]`, `#[get("/")]` / `#[post]` / etc.
