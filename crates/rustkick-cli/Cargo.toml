@@ -2,6 +2,8 @@
 name        = "rustkick-cli"
 version     = "0.0.0"
 description = "`cargo rustkick` subcommand — scaffold, dev, generate, add"
+# Placeholder binary. Gated until Phase 5. See RELEASE.md.
+publish     = false
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true

@@ -2,6 +2,8 @@
 name        = "rustkick-assets"
 version     = "0.0.0"
 description = "Typed asset manifest + cache-busting resolver for rustkick"
+# Placeholder body. Gated until Phase 5. See RELEASE.md.
+publish     = false
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true

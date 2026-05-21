@@ -2,6 +2,9 @@
 name        = "rustkick-macros"
 version     = "0.0.0"
 description = "Opt-in proc-macro sugar for rustkick (#[service], #[handler], #[get], ...)"
+# Placeholder body (todo!() expansions). Gated until Phase 3.
+# See RELEASE.md → "Versioning model".
+publish     = false
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true

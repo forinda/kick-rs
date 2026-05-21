@@ -1,0 +1,53 @@
+# Continuous integration. Runs on every push to main and every PR.
+#
+# What it gates:
+#   * Workspace `cargo build` succeeds
+#   * Workspace `cargo test` passes
+#   * `cargo fmt --all -- --check`
+#   * `cargo clippy --workspace --all-targets -- -D warnings`
+#
+# What it doesn't gate (yet):
+#   * The `examples/users-api/` build — that crate is excluded from the
+#     workspace and pulls in sqlx + postgres. Add a separate matrix job
+#     here once we want it covered.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  build-test:
+    name: build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo registry + target
+        uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt --check
+        run: cargo fmt --all -- --check
+
+      - name: cargo build
+        run: cargo build --workspace --all-targets --locked
+
+      - name: cargo test
+        run: cargo test --workspace --all-targets --locked
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings

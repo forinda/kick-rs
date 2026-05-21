@@ -1,0 +1,80 @@
+# Release-plz — opens / updates a "Release PR" whenever there are
+# unreleased commits, then publishes to crates.io and tags releases
+# when the PR is merged.
+#
+# Required secrets:
+#   * CARGO_REGISTRY_TOKEN — created on https://crates.io/me, scoped to
+#     `publish-update`. Until rustkick is published once, this can be
+#     omitted; release-plz will still open the Release PR with version
+#     bumps + CHANGELOG updates, just skipping the publish step.
+#
+# Required repo permissions (already granted by `permissions:` below):
+#   * contents: write  — to push the release commit and tag
+#   * pull-requests: write — to open / update the Release PR
+#
+# See RELEASE.md for the full strategy.
+
+name: release-plz
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-plz-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-plz:
+    name: release-plz
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'forinda/rustkick' }}
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history is required so release-plz can walk commits
+          # for changelog generation.
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run release-plz
+        uses: release-plz/action@v0.5
+        with:
+          command: release-pr
+          # `release-pr` opens / updates the Release PR.
+          # The `release` command (publish + tag) runs in a separate
+          # job below — gated on the same workflow file but only fires
+          # for the release commit pushed by the Release PR merge.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  release-publish:
+    name: release-publish (crates.io)
+    runs-on: ubuntu-latest
+    if: ${{ github.repository == 'forinda/rustkick' }}
+    needs: release-plz
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish + tag
+        uses: release-plz/action@v0.5
+        with:
+          command: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
