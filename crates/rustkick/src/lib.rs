@@ -16,9 +16,10 @@
 
 // ── Core ────────────────────────────────────────────────────────────────
 pub use rustkick_core::{
-    define_adapter, define_module, define_plugin, Adapter, AdapterContext, ContextContributor,
-    Container, ContainerBuilder, Introspect, IntrospectionKind, IntrospectionSnapshot, KickError,
-    KickResult, Module, ModuleBuilder, Plugin, Scope, Token,
+    define_adapter, define_module, define_plugin, Adapter, AdapterContext, AdapterDef,
+    AdapterFactory, BuildContext, ContextContributor, Container, ContainerBuilder, Introspect,
+    IntrospectionKind, IntrospectionSnapshot, KickError, KickResult, Module, ModuleBuilder,
+    Plugin, PluginDef, PluginFactory, ProviderSpec, Scope, Token,
 };
 
 // ── HTTP ────────────────────────────────────────────────────────────────
