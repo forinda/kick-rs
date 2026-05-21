@@ -1,12 +1,11 @@
 # rustkick
 
 > **A Rust port of [KickJS](https://github.com/forinda/kick-js).**
-> The same module-driven, adapter-extensible, contributor-pipelined web
-> framework, but Rust-native: built on [axum](https://github.com/tokio-rs/axum)
-> + [tokio](https://tokio.rs), DB-agnostic, with compile-time DI and
-> typed context contributors.
+> Module-driven, adapter-extensible, contributor-pipelined web framework
+> on [axum](https://github.com/tokio-rs/axum) + [tokio](https://tokio.rs).
+> DB-agnostic. Compile-time DI. Typed context contributors.
 
-[![status](https://img.shields.io/badge/status-foundation--in--progress-orange)](#status)
+[![status](https://img.shields.io/badge/status-foundation--scaffold-orange)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![rust](https://img.shields.io/badge/rust-1.78%2B-orange)](rust-toolchain.toml)
 
@@ -14,15 +13,37 @@
 
 ## Status
 
-**Foundation in progress.** This repository currently contains:
+**This is a scaffold, not a working framework yet.**
 
-- Done — [`SPEC.md`](./SPEC.md), the design specification
-- Done — [`ARCHITECTURE.md`](./ARCHITECTURE.md), internals & lifecycle
-- Pending — `crates/rustkick-core` (DI container, modules, adapters, plugins)
-- Pending — `crates/rustkick-http` (axum integration, `bootstrap()`, `Inject<T>`, `Ctx`)
-- Pending — `examples/users-api` (Users CRUD with a local sqlx Postgres adapter)
+Every public type and function listed in the spec exists in the crate
+tree so the API surface can stabilize before the implementation lands.
+Most bodies are `todo!()` placeholders. Only one piece has a real
+implementation today:
 
-API is not yet stable. Pin to a git SHA if you depend on it before v0.1.0.
+- `rustkick-core::mount_sort` — full Kahn topological sort with 4
+  passing unit tests (cycle / missing-dep / duplicate / linear chain
+  detection).
+
+What works **right now**:
+
+- `cargo build --workspace` — compiles clean on Rust stable
+- `cargo test --workspace` — 4/4 tests pass
+
+What does **not** yet work:
+
+- `bootstrap()` — calling it panics with `todo!`
+- The hello-world snippet in this README — aspirational; will compile
+  once Phase 1 lands
+- The `examples/` directory — does not exist yet
+- `cargo rustkick` CLI — placeholder binary that prints "not implemented"
+
+See [`SPEC.md`](./SPEC.md) for the design, [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+for internals, and the [phase roadmap](./SPEC.md#11-implementation-phases)
+for what's next.
+
+> If you depend on this before v0.1.0, pin to a specific git SHA. The
+> API surface is reserved but the implementations haven't been
+> battle-tested.
 
 ---
 
@@ -51,7 +72,11 @@ for the full row-by-row mapping.
 
 ---
 
-## Hello world
+## Target API (aspirational)
+
+This is what an app will look like once Phase 1 + Phase 2 land. **It
+does not compile yet** — the `.get(...)` builder method, the `#[service]`
+expansion, and `bootstrap().listen()` are all `todo!()` placeholders today.
 
 ```rust
 use rustkick::{bootstrap, define_module, Inject, KickResult};
@@ -89,67 +114,69 @@ async fn main() -> KickResult<()> {
 
 ---
 
-## Ported features
+## Roadmap
 
-Everything that makes KickJS productive, translated to Rust idioms.
+The full phase plan lives in [SPEC.md §11](./SPEC.md#11-implementation-phases).
+Top-level summary:
 
-- **Done** — in the foundation
-- **Planned** — on the roadmap
-- **Omitted** — Node-specific, deliberately not ported
+| Phase | Goal                                                                  | Status |
+|-------|-----------------------------------------------------------------------|--------|
+| 0     | Spec + architecture documents, workspace scaffold                     | **Done** |
+| 1     | `rustkick-core`: real Container, Module, Adapter, Plugin, contributor | Pending |
+| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter         | Pending |
+| 3     | `rustkick-macros`: `#[service]` / `#[handler]` / `#[get]` sugar       | Pending |
+| 4     | Context contributors with typed tuple `Deps`                          | Pending |
+| 5     | Adapter shutdown polish, OpenAPI, auth, CLI                           | Pending |
+| 6     | Ecosystem crates (ws, queue, otel, devtools)                          | Future |
 
-### Core (in `rustkick-core`)
+DB-related crates (`rustkick-pg`, `rustkick-diesel`, …) are **not** on the
+roadmap. DB code lives in user code or examples; the framework stays lean.
 
-- **Done** — Typed DI container with singleton, transient, request-scoped providers
-- **Done** — `Token<T>` for named bindings (trait objects, disambiguation)
-- **Done** — Module system: `define_module()` composes routes + services + contributors
-- **Done** — Adapter lifecycle: `before_mount` / `before_start` / `after_start` / `shutdown`
-- **Done** — Plugin system: `define_plugin()` with `.scoped()` / `.async_()` variants
-- **Done** — Context contributors with typed `Deps`, topo-sorted, 5 registration sites
-- **Done** — Mount sort (Kahn) for `depends_on` ordering — cycle/missing/duplicate detection
-- **Done** — Structured errors: `KickError` with code, fix hint, RFC 7807 mapping
-- **Done** — Introspection hook (`Introspect` trait) for DevTools-style snapshots
-- **Done** — Container change events (debounced) for tooling integrations
-- **Planned** — Cache decorator (`#[cacheable]` over a pluggable provider)
-- **Planned** — Cron decorator (`#[cron("0 * * * *")]`)
-- **Planned** — Reactivity primitives (`ref`, `computed`, `watch`)
-- **Planned** — Circuit breaker for guarded outbound calls
-- **Omitted** — `reflect-metadata`: not needed; proc-macros emit real Rust
+---
 
-### HTTP (in `rustkick-http`)
+## Crate layout
 
-- **Done** — `bootstrap()` fluent app entry point
-- **Done** — `Inject<T>` axum extractor
-- **Done** — `Ctx<P>` request context (typed params, headers, request-id, paginate helper)
-- **Done** — Built-in plugins: `request_id`, `request_logger`, `cors`, `helmet`, `compression`, `trace_context`
-- **Done** — Path-scoped middleware: `MiddlewareEntry::at(path, layer)`
-- **Planned** — CSRF / rate-limit / session / upload bundle
-- **Planned** — Query parsing (filters / sort / pagination / search with field allowlists)
-- **Planned** — View / SPA adapters
-- **Planned** — OpenAPI generation from `utoipa` derives + module metadata
+```
+rust-pg/                          # this repo (will rename to rustkick before publish)
+├── SPEC.md                       # design spec
+├── ARCHITECTURE.md               # internals
+├── README.md                     # this file
+├── Cargo.toml                    # workspace manifest
+└── crates/
+    ├── rustkick/                 # umbrella crate — `use rustkick::*`
+    ├── rustkick-core/            # Container, Module, Adapter, Plugin, errors
+    ├── rustkick-http/            # axum integration, Inject, Ctx, bootstrap
+    ├── rustkick-macros/          # #[service], #[handler], #[get] proc-macros
+    ├── rustkick-config/          # env loader + ConfigService
+    ├── rustkick-assets/          # asset manifest + typed keys
+    └── rustkick-cli/             # `cargo rustkick` subcommand
+```
 
-### Optional crates (opt-in, separate compilation)
-
-- **Planned** — `rustkick-config`: env loader + `define_env!` declarative macro
-- **Planned** — `rustkick-assets`: typed asset manifest + `asset_keys!` macro
-- **Planned** — `rustkick-cli`: `cargo rustkick {new, dev, g, add, info, check}` subcommand
-- **Planned** — `rustkick-macros`: `#[service]`, `#[handler]`, `#[get("/")]` sugar (opt-in)
-
-### Deliberately omitted from the foundation
-
-- **DB / ORM in framework crates** — DB code lives only in *user* code or
-  examples. Adopters wire sqlx, diesel, sea-orm, or a custom driver as a
-  normal adapter. See [SPEC.md §1](./SPEC.md#1-goals--non-goals) for rationale.
-- **Vite HMR / in-process module swap** — `cargo watch -x run` is the dev loop.
-- **Multi-runtime support** — tokio only for v0.1.
+`examples/` will appear once Phase 2 begins.
 
 ---
 
 ## Installing rustkick in your project
 
 Rust packages ("crates") are distributed via three mechanisms — all
-first-class in `cargo`:
+first-class in `cargo`. Pick whichever matches what's published today.
 
-### 1. From crates.io (planned, post-v0.1.0)
+### 1. From this git repo (only option today)
+
+```toml
+[dependencies]
+rustkick = { git = "https://github.com/forinda/rustkick", branch = "feature/foundation", features = ["macros"] }
+
+# Pin to a specific commit for reproducibility (recommended pre-v0.1.0):
+# rustkick = { git = "https://github.com/forinda/rustkick", rev = "<sha>", features = ["macros"] }
+```
+
+`cargo` natively resolves git dependencies — no extra registry config,
+no auth required for public repos. For a private repo, set up
+[git credentials](https://doc.rust-lang.org/cargo/reference/registries.html#authentication)
+or use SSH URLs.
+
+### 2. From crates.io (planned, post-v0.1.0)
 
 ```toml
 [dependencies]
@@ -158,24 +185,6 @@ rustkick = { version = "0.1", features = ["macros"] }
 
 This is the public Rust registry at <https://crates.io>. One account,
 `cargo publish` once per release. Not yet — rustkick is pre-release.
-
-### 2. From this git repo (recommended today)
-
-```toml
-[dependencies]
-rustkick = { git = "https://github.com/forinda/rustkick", branch = "main", features = ["macros"] }
-
-# Pin to a specific commit for reproducibility:
-# rustkick = { git = "https://github.com/forinda/rustkick", rev = "abc123def", features = ["macros"] }
-
-# Or to a tag:
-# rustkick = { git = "https://github.com/forinda/rustkick", tag = "rustkick-v0.1.0", features = ["macros"] }
-```
-
-`cargo` natively resolves git dependencies — no extra registry config,
-no auth required for public repos. For a private repo, set up
-[git credentials](https://doc.rust-lang.org/cargo/reference/registries.html#authentication)
-or use SSH URLs.
 
 ### 3. From a local path (during framework development)
 
@@ -188,74 +197,38 @@ Useful when you're hacking on rustkick and a real app side by side.
 
 ---
 
-## Repository layout
-
-```
-rust-pg/                          # this repo (renamed to rustkick before publish)
-├── SPEC.md                       # design spec
-├── ARCHITECTURE.md               # internals
-├── README.md                     # this file
-├── Cargo.toml                    # workspace manifest
-├── crates/
-│   ├── rustkick/                 # umbrella crate — `use rustkick::*`
-│   ├── rustkick-core/            # Container, Module, Adapter, Plugin, errors
-│   ├── rustkick-http/            # axum integration, Inject, Ctx, bootstrap
-│   ├── rustkick-macros/          # #[service], #[handler], #[get] proc-macros
-│   ├── rustkick-config/          # env loader + ConfigService
-│   ├── rustkick-assets/          # asset manifest + typed keys
-│   └── rustkick-cli/             # `cargo rustkick` subcommand
-└── examples/
-    └── users-api/                # CRUD demo with sqlx Postgres
-                                  # DB adapter lives inside the example,
-                                  # not in framework crates
-```
-
----
-
-## Running an example
-
-```bash
-git clone https://github.com/forinda/rustkick.git
-cd rustkick/examples/users-api
-
-# the example brings its own postgres
-docker compose up -d
-sqlx migrate run
-
-cargo run
-# -> server listening on http://0.0.0.0:3000
-curl http://localhost:3000/users
-```
-
----
-
 ## Development
+
+Cargo lives at `~/.cargo/bin/cargo` on most setups. From the workspace
+root:
 
 ```bash
 # build everything
 cargo build --workspace
 
-# test
+# run the (4) passing tests
 cargo test --workspace
 
 # format
 cargo fmt --all
 
-# lint
+# lint (recommended before commits)
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-The recommended dev loop is `cargo watch -x 'build --workspace'` (or
-`cargo rustkick dev` from inside an example once the CLI lands) —
+The recommended dev loop is `cargo watch -x 'build --workspace'` —
 install with `cargo install cargo-watch`.
 
 ---
 
-## Versioning
+## Versioning (planned)
 
-Each crate in `crates/` versions independently — same model as `tokio-*`
-and `tower-*`. Release tags are `<crate>-vX.Y.Z`. The umbrella `rustkick`
-crate pins matching minor versions of `rustkick-core` and `rustkick-http`.
+Each crate in `crates/` will version independently — same model as
+`tokio-*` and `tower-*`. Release tags: `<crate>-vX.Y.Z`. The umbrella
+`rustkick` crate will pin matching minor versions of `rustkick-core`
+and `rustkick-http`.
+
+Not in effect yet — everything is at `0.0.0` until Phase 1 lands.
 
 ---
 
@@ -265,7 +238,7 @@ The foundation is the priority right now. If you want to help:
 
 1. Read [`SPEC.md`](./SPEC.md) and [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 2. Open an issue before non-trivial PRs — the design is still moving fast.
-3. Each PR should reference a phase in the [implementation roadmap](./SPEC.md#11-implementation-phases).
+3. Each PR should reference a phase in the [roadmap](./SPEC.md#11-implementation-phases).
 
 ---
 
