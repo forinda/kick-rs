@@ -1061,10 +1061,16 @@ cargo run
 - [x] `SPEC.md`
 - [ ] `ARCHITECTURE.md` (internals)
 
-### Phase 1 — Core skeleton
-- [ ] `rustkick-core`: `Container`, `Token`, `Scope`, `Module`, `KickError`
-- [ ] `rustkick-http`: `bootstrap()`, `Inject` extractor, `Ctx`, axum wiring
-- [ ] `rustkick` umbrella crate
+### Phase 1 — Core skeleton ✅ Done
+- [x] `rustkick-core`: `Container` with three-scope resolution, `Module` provider folding,
+      `define_adapter` / `define_plugin` factories (`.call()` / `.with()` / `.scoped()`),
+      `KickError` + structured error matrix, generic Kahn `mount_sort`, `Introspect` contract
+- [x] `rustkick-http`: `bootstrap().listen()` with real axum integration, `Inject<T>`
+      `FromRequestParts` extractor, `HttpModule` with `.get`/`.post`/`.put`/`.patch`/`.delete`,
+      `HttpError` (RFC 7807 problem-details), cooperative shutdown with per-adapter timeouts
+- [x] `rustkick` umbrella crate re-exports HTTP `define_module` as the default
+
+      45/45 tests passing (12 container · 9 module · 4 mount_sort · 6 adapter · 5 plugin · 9 http)
 
 ### Phase 2 — Sample app
 - [ ] `examples/users-api` runs end-to-end against a real Postgres

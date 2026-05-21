@@ -5,7 +5,7 @@
 > on [axum](https://github.com/tokio-rs/axum) + [tokio](https://tokio.rs).
 > DB-agnostic. Compile-time DI. Typed context contributors.
 
-[![status](https://img.shields.io/badge/status-foundation--scaffold-orange)](#status)
+[![status](https://img.shields.io/badge/status-phase--1--complete-green)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![rust](https://img.shields.io/badge/rust-1.78%2B-orange)](rust-toolchain.toml)
 
@@ -13,29 +13,39 @@
 
 ## Status
 
-**This is a scaffold, not a working framework yet.**
+**Phase 1 done. The framework works end-to-end for the surface that's landed.**
 
-Every public type and function listed in the spec exists in the crate
-tree so the API surface can stabilize before the implementation lands.
-Most bodies are `todo!()` placeholders. Only one piece has a real
-implementation today:
+What works right now:
 
-- `rustkick-core::mount_sort` — full Kahn topological sort with 4
-  passing unit tests (cycle / missing-dep / duplicate / linear chain
-  detection).
+- **Typed DI container** — three scopes (singleton, transient, request-stub),
+  build-time duplicate detection, fast read-lock resolution
+- **Module composition** — providers fold across modules and sub-modules into
+  one container; cross-module conflicts caught at build
+- **Adapter & Plugin factories** — `define_adapter()` / `define_plugin()` with
+  `.call()` / `.with(cfg)` / `.scoped(name, cfg)` variants
+- **Cooperative shutdown** — `tokio::join_all` across adapters with per-adapter
+  timeout budget
+- **`bootstrap().listen(addr)`** — real axum server with the full lifecycle:
+  topo-sort adapters → `before_mount` → `before_start` → bind → `after_start` →
+  serve with Ctrl-C graceful shutdown → `shutdown()`
+- **`Inject<T>` extractor** — axum-native DI access in handlers, with structured
+  errors (`RK_E_UNKNOWN_TOKEN`) returned as RFC 7807 problem-details JSON
+- **`define_module(...)`** with `.get`/`.post`/`.put`/`.patch`/`.delete`, prefix
+  application, and sub-module nesting
 
-What works **right now**:
+Build state:
 
-- `cargo build --workspace` — compiles clean on Rust stable
-- `cargo test --workspace` — 4/4 tests pass
+- `cargo build --workspace` — clean
+- `cargo test --workspace` — **45/45 passing**
+- `cargo clippy --workspace --lib --tests -- -D warnings` — clean
 
-What does **not** yet work:
+What does **not** yet exist:
 
-- `bootstrap()` — calling it panics with `todo!`
-- The hello-world snippet in this README — aspirational; will compile
-  once Phase 1 lands
-- The `examples/` directory — does not exist yet
-- `cargo rustkick` CLI — placeholder binary that prints "not implemented"
+- `examples/` directory — the users-api demo lands in Phase 2 next
+- `cargo rustkick` CLI — placeholder binary
+- `#[service]` / `#[handler]` / `#[get]` proc-macros — Phase 3
+- Context contributors with typed `Deps` — Phase 4
+- DB adapter (sqlx/diesel/sea-orm) — explicitly out of scope; lives in user code
 
 See [`SPEC.md`](./SPEC.md) for the design, [`ARCHITECTURE.md`](./ARCHITECTURE.md)
 for internals, and the [phase roadmap](./SPEC.md#11-implementation-phases)
@@ -72,22 +82,17 @@ for the full row-by-row mapping.
 
 ---
 
-## Target API (aspirational)
-
-This is what an app will look like once Phase 1 + Phase 2 land. **It
-does not compile yet** — the `.get(...)` builder method, the `#[service]`
-expansion, and `bootstrap().listen()` are all `todo!()` placeholders today.
+## Hello world (compiles today)
 
 ```rust
 use rustkick::{bootstrap, define_module, Inject, KickResult};
 use axum::Json;
+use std::sync::Arc;
 
-#[rustkick::service]
 struct HelloService;
-
 impl HelloService {
     fn greet(&self, name: &str) -> serde_json::Value {
-        serde_json::json!({ "message": format!("Hello {} from rustkick!", name) })
+        serde_json::json!({ "message": format!("Hello {name} from rustkick!") })
     }
 }
 
@@ -98,7 +103,7 @@ async fn index(svc: Inject<HelloService>) -> Json<serde_json::Value> {
 fn hello_module() -> rustkick::Module {
     define_module("hello")
         .prefix("/hello")
-        .service::<HelloService>()
+        .service_value(HelloService)
         .get("/", index)
         .build()
 }
@@ -112,6 +117,10 @@ async fn main() -> KickResult<()> {
 }
 ```
 
+> The `#[service]` proc-macro that auto-wires `Inject<T>` fields lands in
+> Phase 3 — until then `.service_value(value)` and `.service_factory(|c|
+> Arc::new(...))` are the explicit equivalents.
+
 ---
 
 ## Roadmap
@@ -119,15 +128,15 @@ async fn main() -> KickResult<()> {
 The full phase plan lives in [SPEC.md §11](./SPEC.md#11-implementation-phases).
 Top-level summary:
 
-| Phase | Goal                                                                  | Status |
-|-------|-----------------------------------------------------------------------|--------|
-| 0     | Spec + architecture documents, workspace scaffold                     | **Done** |
-| 1     | `rustkick-core`: real Container, Module, Adapter, Plugin, contributor | Pending |
-| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter         | Pending |
-| 3     | `rustkick-macros`: `#[service]` / `#[handler]` / `#[get]` sugar       | Pending |
-| 4     | Context contributors with typed tuple `Deps`                          | Pending |
-| 5     | Adapter shutdown polish, OpenAPI, auth, CLI                           | Pending |
-| 6     | Ecosystem crates (ws, queue, otel, devtools)                          | Future |
+| Phase | Goal                                                            | Status   |
+|-------|-----------------------------------------------------------------|----------|
+| 0     | Spec + architecture documents, workspace scaffold               | **Done** |
+| 1     | `rustkick-core` Container/Module/Adapter + `rustkick-http` axum | **Done** |
+| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter   | Pending  |
+| 3     | `rustkick-macros`: `#[service]` / `#[handler]` / `#[get]` sugar | Pending  |
+| 4     | Context contributors with typed tuple `Deps`                    | Pending  |
+| 5     | Adapter shutdown polish, OpenAPI, auth, CLI                     | Pending  |
+| 6     | Ecosystem crates (ws, queue, otel, devtools)                    | Future   |
 
 DB-related crates (`rustkick-pg`, `rustkick-diesel`, …) are **not** on the
 roadmap. DB code lives in user code or examples; the framework stays lean.
