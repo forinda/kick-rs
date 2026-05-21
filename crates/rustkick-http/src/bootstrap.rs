@@ -77,7 +77,12 @@ impl Bootstrap {
     /// socket. Useful for tower-style testing via `ServiceExt::oneshot`.
     /// Errors are surfaced from container or topo-sort validation.
     pub fn into_router(self) -> KickResult<(axum::Router, AppState)> {
-        let Bootstrap { modules, adapters, plugins, shutdown_timeout: _ } = self;
+        let Bootstrap {
+            modules,
+            adapters,
+            plugins,
+            shutdown_timeout: _,
+        } = self;
 
         // 1. Fold module providers into a container.
         let mut builder = Container::builder();
@@ -87,8 +92,7 @@ impl Bootstrap {
         let container = builder.build()?;
 
         // 2. Topo-sort adapters by depends_on.
-        let mount_items: Vec<MountAdapter> =
-            adapters.into_iter().map(MountAdapter::from).collect();
+        let mount_items: Vec<MountAdapter> = adapters.into_iter().map(MountAdapter::from).collect();
         let sorted = topo_sort(mount_items)?;
         let adapters: Vec<Arc<dyn Adapter>> = sorted.into_iter().map(|m| m.inner).collect();
 
@@ -99,7 +103,14 @@ impl Bootstrap {
         }
         router = router.layer(Extension(container.clone()));
 
-        Ok((router, AppState { container, adapters, plugins }))
+        Ok((
+            router,
+            AppState {
+                container,
+                adapters,
+                plugins,
+            },
+        ))
     }
 
     /// Start the server. Binds to `addr`, runs the full lifecycle, and
@@ -107,7 +118,9 @@ impl Bootstrap {
     pub async fn listen(self, addr: &str) -> KickResult<()> {
         let shutdown_timeout = self.shutdown_timeout.unwrap_or(DEFAULT_SHUTDOWN_TIMEOUT);
         let (router, state) = self.into_router()?;
-        let ctx = AdapterContext { container: state.container.clone() };
+        let ctx = AdapterContext {
+            container: state.container.clone(),
+        };
 
         // 3 (deferred). before_mount — runs against the built container.
         for a in &state.adapters {
@@ -121,8 +134,7 @@ impl Bootstrap {
 
         // 7. Bind + serve.
         let listener = tokio::net::TcpListener::bind(addr).await.map_err(|e| {
-            KickError::new("RK_H_BIND_FAILED", format!("could not bind {addr}: {e}"))
-                .with_source(e)
+            KickError::new("RK_H_BIND_FAILED", format!("could not bind {addr}: {e}")).with_source(e)
         })?;
         let local = listener
             .local_addr()
@@ -193,7 +205,10 @@ struct MountAdapter {
 
 impl From<Arc<dyn Adapter>> for MountAdapter {
     fn from(inner: Arc<dyn Adapter>) -> Self {
-        Self { name: inner.name().to_owned(), inner }
+        Self {
+            name: inner.name().to_owned(),
+            inner,
+        }
     }
 }
 
@@ -228,8 +243,8 @@ async fn shutdown_adapters(adapters: &[Arc<dyn Adapter>], per_timeout: Duration)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Inject;
     use crate::module::define_module;
+    use crate::Inject;
     use async_trait::async_trait;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
@@ -253,7 +268,9 @@ mod tests {
     #[tokio::test]
     async fn into_router_builds_a_working_app() {
         let m = define_module("c")
-            .service_value(Counter { n: AtomicUsize::new(0) })
+            .service_value(Counter {
+                n: AtomicUsize::new(0),
+            })
             .get("/count", count)
             .build();
 
@@ -268,8 +285,10 @@ mod tests {
         let body = axum::body::to_bytes(res.into_body(), 16).await.unwrap();
         assert_eq!(&body[..], b"1");
 
-        let res2 =
-            router.oneshot(Request::get("/count").body(Body::empty()).unwrap()).await.unwrap();
+        let res2 = router
+            .oneshot(Request::get("/count").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
         let body2 = axum::body::to_bytes(res2.into_body(), 16).await.unwrap();
         assert_eq!(&body2[..], b"2", "singleton must persist across requests");
     }
@@ -333,13 +352,20 @@ mod tests {
         };
 
         // Insert in reverse order — topo_sort must reorder them.
-        let (_router, state) = bootstrap().adapter(c).adapter(b).adapter(a).into_router().unwrap();
+        let (_router, state) = bootstrap()
+            .adapter(c)
+            .adapter(b)
+            .adapter(a)
+            .into_router()
+            .unwrap();
 
         let names: Vec<_> = state.adapters.iter().map(|a| a.name().to_owned()).collect();
         assert_eq!(names, vec!["a", "b", "c"]);
 
         // Drive before_start manually so we can assert call order.
-        let ctx = AdapterContext { container: state.container.clone() };
+        let ctx = AdapterContext {
+            container: state.container.clone(),
+        };
         for ad in &state.adapters {
             ad.before_start(&ctx).await.unwrap();
         }

@@ -39,8 +39,7 @@ pub fn topo_sort<T: MountItem>(items: Vec<T>) -> KickResult<Vec<T>> {
     }
 
     // Build in-degree map + edges, all using owned strings.
-    let mut in_degree: HashMap<String, usize> =
-        names.iter().map(|n| (n.clone(), 0usize)).collect();
+    let mut in_degree: HashMap<String, usize> = names.iter().map(|n| (n.clone(), 0usize)).collect();
     let mut edges: HashMap<String, Vec<String>> = HashMap::new();
     for (i, n) in names.iter().enumerate() {
         for dep in &deps[i] {
@@ -78,8 +77,10 @@ pub fn topo_sort<T: MountItem>(items: Vec<T>) -> KickResult<Vec<T>> {
         order.push(n);
     }
     if order.len() != names.len() {
-        return Err(KickError::new("RK_E_MOUNT_CYCLE", "cycle detected in mount graph")
-            .with_hint("break the cycle in `depends_on` declarations"));
+        return Err(
+            KickError::new("RK_E_MOUNT_CYCLE", "cycle detected in mount graph")
+                .with_hint("break the cycle in `depends_on` declarations"),
+        );
     }
 
     // Reorder original items by computed order.
@@ -117,9 +118,15 @@ mod tests {
     #[test]
     fn sorts_linear_chain() {
         let items = vec![
-            Item { n: "c", deps: &["b"] },
+            Item {
+                n: "c",
+                deps: &["b"],
+            },
             Item { n: "a", deps: &[] },
-            Item { n: "b", deps: &["a"] },
+            Item {
+                n: "b",
+                deps: &["a"],
+            },
         ];
         let sorted = topo_sort(items).unwrap();
         let names: Vec<_> = sorted.iter().map(|i| i.n).collect();
@@ -129,8 +136,14 @@ mod tests {
     #[test]
     fn detects_cycle() {
         let items = vec![
-            Item { n: "a", deps: &["b"] },
-            Item { n: "b", deps: &["a"] },
+            Item {
+                n: "a",
+                deps: &["b"],
+            },
+            Item {
+                n: "b",
+                deps: &["a"],
+            },
         ];
         let err = topo_sort(items).unwrap_err();
         assert_eq!(err.code, "RK_E_MOUNT_CYCLE");
@@ -138,17 +151,17 @@ mod tests {
 
     #[test]
     fn detects_missing_dep() {
-        let items = vec![Item { n: "a", deps: &["ghost"] }];
+        let items = vec![Item {
+            n: "a",
+            deps: &["ghost"],
+        }];
         let err = topo_sort(items).unwrap_err();
         assert_eq!(err.code, "RK_E_MISSING_MOUNT_DEP");
     }
 
     #[test]
     fn detects_duplicate() {
-        let items = vec![
-            Item { n: "a", deps: &[] },
-            Item { n: "a", deps: &[] },
-        ];
+        let items = vec![Item { n: "a", deps: &[] }, Item { n: "a", deps: &[] }];
         let err = topo_sort(items).unwrap_err();
         assert_eq!(err.code, "RK_E_DUPLICATE_MOUNT");
     }

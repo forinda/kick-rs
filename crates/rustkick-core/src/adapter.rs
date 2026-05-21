@@ -60,7 +60,9 @@ pub struct AdapterContext {
 
 impl std::fmt::Debug for AdapterContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AdapterContext").field("container", &self.container).finish()
+        f.debug_struct("AdapterContext")
+            .field("container", &self.container)
+            .finish()
     }
 }
 
@@ -174,7 +176,10 @@ pub fn define_adapter<C>(name: &'static str) -> AdapterDef<C>
 where
     C: Clone + Send + Sync + 'static,
 {
-    AdapterDef { name, defaults: None }
+    AdapterDef {
+        name,
+        defaults: None,
+    }
 }
 
 // ──────────────────────────────── Tests ────────────────────────────────────
@@ -190,7 +195,10 @@ mod tests {
     }
     impl Default for PgConfig {
         fn default() -> Self {
-            Self { url: "postgres://localhost".into(), max_conns: 10 }
+            Self {
+                url: "postgres://localhost".into(),
+                max_conns: 10,
+            }
         }
     }
 
@@ -223,7 +231,10 @@ mod tests {
     #[test]
     fn with_overrides_config_keeps_base_name() {
         let f = pg_def().build(|_ctx, name, cfg| PgAdapter { name, cfg });
-        let a = f.with(PgConfig { url: "postgres://prod".into(), max_conns: 50 });
+        let a = f.with(PgConfig {
+            url: "postgres://prod".into(),
+            max_conns: 50,
+        });
         assert_eq!(a.name(), "postgres");
         assert_eq!(a.cfg.url, "postgres://prod");
         assert_eq!(a.cfg.max_conns, 50);
@@ -233,7 +244,13 @@ mod tests {
     fn scoped_namespaces_name_and_uses_supplied_config() {
         let f = pg_def().build(|_ctx, name, cfg| PgAdapter { name, cfg });
         let reads = f.scoped("reads", PgConfig::default());
-        let writes = f.scoped("writes", PgConfig { url: "postgres://primary".into(), max_conns: 20 });
+        let writes = f.scoped(
+            "writes",
+            PgConfig {
+                url: "postgres://primary".into(),
+                max_conns: 20,
+            },
+        );
 
         assert_eq!(reads.name(), "postgres:reads");
         assert_eq!(writes.name(), "postgres:writes");
@@ -243,13 +260,15 @@ mod tests {
     #[test]
     #[should_panic(expected = ".defaults(...)")]
     fn call_without_defaults_panics() {
-        let f = define_adapter::<PgConfig>("orphan").build(|_ctx, name, cfg| PgAdapter { name, cfg });
+        let f =
+            define_adapter::<PgConfig>("orphan").build(|_ctx, name, cfg| PgAdapter { name, cfg });
         let _ = f.call();
     }
 
     #[test]
     fn no_defaults_still_allows_with() {
-        let f = define_adapter::<PgConfig>("orphan").build(|_ctx, name, cfg| PgAdapter { name, cfg });
+        let f =
+            define_adapter::<PgConfig>("orphan").build(|_ctx, name, cfg| PgAdapter { name, cfg });
         assert!(!f.has_defaults());
         let a = f.with(PgConfig::default());
         assert_eq!(a.name(), "orphan");
@@ -257,12 +276,15 @@ mod tests {
 
     #[tokio::test]
     async fn default_lifecycle_hooks_are_no_ops() {
-        let a = pg_def().build(|_ctx, name, cfg| PgAdapter { name, cfg }).call();
-        let ctx = AdapterContext { container: Container::builder().build().unwrap() };
+        let a = pg_def()
+            .build(|_ctx, name, cfg| PgAdapter { name, cfg })
+            .call();
+        let ctx = AdapterContext {
+            container: Container::builder().build().unwrap(),
+        };
         assert!(a.before_mount(&ctx).await.is_ok());
         assert!(a.before_start(&ctx).await.is_ok());
         assert!(a.after_start(&ctx).await.is_ok());
         assert!(a.shutdown().await.is_ok());
     }
 }
-

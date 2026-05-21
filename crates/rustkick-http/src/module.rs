@@ -60,7 +60,12 @@ impl HttpModule {
 
     /// Total number of routes declared by this module + sub-modules.
     pub fn route_count(&self) -> usize {
-        self.routes.len() + self.sub_modules.iter().map(|s| s.route_count()).sum::<usize>()
+        self.routes.len()
+            + self
+                .sub_modules
+                .iter()
+                .map(|s| s.route_count())
+                .sum::<usize>()
     }
 }
 
@@ -191,7 +196,8 @@ impl HttpModuleBuilder {
         } else {
             format!("{}{}", self.prefix, path)
         };
-        let registrar: RouteRegistrar = Box::new(move |r: Router| r.route(&full_path, method_router));
+        let registrar: RouteRegistrar =
+            Box::new(move |r: Router| r.route(&full_path, method_router));
         self.routes.push(registrar);
         self
     }
@@ -235,7 +241,9 @@ mod tests {
     #[tokio::test]
     async fn basic_get_route_responds() {
         let m = define_module("test").get("/ping", root).build();
-        let router = m.mount_onto(Router::new()).layer(Extension(Container::builder().build().unwrap()));
+        let router = m
+            .mount_onto(Router::new())
+            .layer(Extension(Container::builder().build().unwrap()));
 
         let res = router
             .oneshot(Request::get("/ping").body(Body::empty()).unwrap())
@@ -248,8 +256,13 @@ mod tests {
 
     #[tokio::test]
     async fn prefix_is_applied_to_routes() {
-        let m = define_module("test").prefix("/api/v1").get("/ping", root).build();
-        let router = m.mount_onto(Router::new()).layer(Extension(Container::builder().build().unwrap()));
+        let m = define_module("test")
+            .prefix("/api/v1")
+            .get("/ping", root)
+            .build();
+        let router = m
+            .mount_onto(Router::new())
+            .layer(Extension(Container::builder().build().unwrap()));
 
         let res = router
             .clone()
@@ -301,7 +314,10 @@ mod tests {
         assert_eq!(res.status(), StatusCode::INTERNAL_SERVER_ERROR);
         let body = axum::body::to_bytes(res.into_body(), 4096).await.unwrap();
         let body_str = String::from_utf8_lossy(&body);
-        assert!(body_str.contains("RK_E_UNKNOWN_TOKEN"), "body was: {body_str}");
+        assert!(
+            body_str.contains("RK_E_UNKNOWN_TOKEN"),
+            "body was: {body_str}"
+        );
     }
 
     #[tokio::test]
@@ -309,7 +325,10 @@ mod tests {
         async fn inner_handler() -> &'static str {
             "from-inner"
         }
-        let inner = define_module("inner").prefix("/inner").get("/ping", inner_handler).build();
+        let inner = define_module("inner")
+            .prefix("/inner")
+            .get("/ping", inner_handler)
+            .build();
         let outer = define_module("outer").sub_module(inner).build();
 
         assert_eq!(outer.route_count(), 1);

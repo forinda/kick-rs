@@ -35,7 +35,9 @@ pub struct ProviderSpec {
 
 impl std::fmt::Debug for ProviderSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ProviderSpec").field("type", &self.type_name).finish()
+        f.debug_struct("ProviderSpec")
+            .field("type", &self.type_name)
+            .finish()
     }
 }
 
@@ -64,7 +66,12 @@ impl Module {
 
     /// Number of direct + transitive providers.
     pub fn provider_count(&self) -> usize {
-        self.providers.len() + self.sub_modules.iter().map(|s| s.provider_count()).sum::<usize>()
+        self.providers.len()
+            + self
+                .sub_modules
+                .iter()
+                .map(|s| s.provider_count())
+                .sum::<usize>()
     }
 
     /// Fold every provider in this module (and recursively, every
@@ -292,8 +299,12 @@ mod tests {
 
     #[test]
     fn conflicting_providers_in_separate_modules_fail_build() {
-        let mod_a = define_module("a").service_value(Greeter("a".into())).build();
-        let mod_b = define_module("b").service_value(Greeter("b".into())).build();
+        let mod_a = define_module("a")
+            .service_value(Greeter("a".into()))
+            .build();
+        let mod_b = define_module("b")
+            .service_value(Greeter("b".into()))
+            .build();
 
         let mut builder = Container::builder();
         builder = mod_a.register_into(builder);
@@ -308,7 +319,10 @@ mod tests {
         struct A;
         struct B;
         let inner = define_module("inner").service_value(B).build();
-        let outer = define_module("outer").service_value(A).sub_module(inner).build();
+        let outer = define_module("outer")
+            .service_value(A)
+            .sub_module(inner)
+            .build();
 
         let names = outer.provider_type_names();
         assert_eq!(names.len(), 2);

@@ -20,7 +20,10 @@ pub struct Token<T: ?Sized + 'static> {
 impl<T: ?Sized + 'static> Token<T> {
     /// Declare a new token with a stable name.
     pub const fn new(name: &'static str) -> Self {
-        Self { name, _marker: PhantomData }
+        Self {
+            name,
+            _marker: PhantomData,
+        }
     }
 
     /// `TypeId` of the *pointed-at* type — used for lookup keys.
@@ -30,6 +33,8 @@ impl<T: ?Sized + 'static> Token<T> {
 }
 
 impl<T: ?Sized + 'static> Clone for Token<T> {
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 impl<T: ?Sized + 'static> Copy for Token<T> {}

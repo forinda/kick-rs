@@ -12,23 +12,25 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 
-pub mod container;
-pub mod error;
-pub mod token;
-pub mod scope;
-pub mod module;
 pub mod adapter;
-pub mod plugin;
+pub mod container;
 pub mod contributor;
-pub mod mount_sort;
+pub mod error;
 pub mod introspect;
+pub mod module;
+pub mod mount_sort;
+pub mod plugin;
+pub mod scope;
+pub mod token;
 
+pub use adapter::{
+    define_adapter, Adapter, AdapterContext, AdapterDef, AdapterFactory, BuildContext,
+};
 pub use container::{Container, ContainerBuilder};
-pub use error::{KickError, KickResult};
-pub use token::Token;
-pub use scope::Scope;
-pub use module::{define_module, Module, ModuleBuilder, ProviderSpec};
-pub use adapter::{define_adapter, Adapter, AdapterContext, AdapterDef, AdapterFactory, BuildContext};
-pub use plugin::{define_plugin, Plugin, PluginDef, PluginFactory};
 pub use contributor::ContextContributor;
+pub use error::{KickError, KickResult};
 pub use introspect::{Introspect, IntrospectionKind, IntrospectionSnapshot};
+pub use module::{define_module, Module, ModuleBuilder, ProviderSpec};
+pub use plugin::{define_plugin, Plugin, PluginDef, PluginFactory};
+pub use scope::Scope;
+pub use token::Token;

@@ -46,10 +46,7 @@ impl KickError {
     }
 
     /// Attach a wrapped source error.
-    pub fn with_source(
-        mut self,
-        source: impl std::error::Error + Send + Sync + 'static,
-    ) -> Self {
+    pub fn with_source(mut self, source: impl std::error::Error + Send + Sync + 'static) -> Self {
         self.source = Some(Box::new(source));
         self
     }

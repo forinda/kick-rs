@@ -118,9 +118,10 @@ where
     /// Build an instance using the defaults. Panics if no defaults were
     /// set — use [`Self::with`] instead.
     pub fn call(&self) -> P {
-        let cfg = self.defaults.clone().expect(
-            "PluginFactory::call requires `.defaults(...)`; use `.with(config)` otherwise",
-        );
+        let cfg = self
+            .defaults
+            .clone()
+            .expect("PluginFactory::call requires `.defaults(...)`; use `.with(config)` otherwise");
         (self.build_fn)(BuildContext, self.name.to_owned(), cfg)
     }
 
@@ -141,7 +142,10 @@ pub fn define_plugin<C>(name: &'static str) -> PluginDef<C>
 where
     C: Clone + Send + Sync + 'static,
 {
-    PluginDef { name, defaults: None }
+    PluginDef {
+        name,
+        defaults: None,
+    }
 }
 
 // ──────────────────────────────── Tests ────────────────────────────────────
@@ -180,7 +184,9 @@ mod tests {
     #[test]
     fn with_overrides_config() {
         let f = cors_def().build(|_ctx, name, cfg| CorsPlugin { name, cfg });
-        let p = f.with(CorsConfig { origins: vec!["https://app.example.com".into()] });
+        let p = f.with(CorsConfig {
+            origins: vec!["https://app.example.com".into()],
+        });
         assert_eq!(p.cfg.origins, vec!["https://app.example.com".to_string()]);
     }
 
