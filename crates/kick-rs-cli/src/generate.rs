@@ -17,6 +17,7 @@
 //! anchor is what makes us "in a kick-rs project" for the purposes of
 //! this command.
 
+use crate::register::{insert_chain_call_after_anchor, insert_use_after_last_use, RegisterOutcome};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -32,6 +33,10 @@ pub struct GenerateModuleArgs {
     /// Allow overwriting `mod.rs` / `handlers.rs` if the module
     /// directory already exists.
     pub force: bool,
+    /// Try to auto-insert `.module(modules::<name>::define())` into
+    /// `src/main.rs`. When the patterns aren't found, the caller falls
+    /// back to printing a manual hint.
+    pub auto_register: bool,
 }
 
 #[derive(Debug)]
@@ -196,8 +201,16 @@ fn render_contributor(template: &str, snake: &str, pascal: &str) -> String {
         .replace("{{contributor_pascal}}", pascal)
 }
 
+/// Result of `generate_module` — the directory written + how the
+/// `main.rs` auto-register attempt fared.
+#[derive(Debug)]
+pub struct GenerateModuleResult {
+    pub module_dir: PathBuf,
+    pub register: RegisterOutcome,
+}
+
 /// Run the `g module <name>` flow.
-pub fn generate_module(args: &GenerateModuleArgs) -> Result<PathBuf, GenerateError> {
+pub fn generate_module(args: &GenerateModuleArgs) -> Result<GenerateModuleResult, GenerateError> {
     validate_module_name(&args.name)?;
 
     let root = match &args.project_root {
@@ -232,7 +245,48 @@ pub fn generate_module(args: &GenerateModuleArgs) -> Result<PathBuf, GenerateErr
     let modules_mod = root.join("src/modules/mod.rs");
     ensure_pub_mod_line(&modules_mod, &args.name)?;
 
-    Ok(module_dir)
+    let register = if args.auto_register {
+        try_register_module_in_main(&root, &args.name)?
+    } else {
+        RegisterOutcome::Skipped
+    };
+
+    Ok(GenerateModuleResult {
+        module_dir,
+        register,
+    })
+}
+
+/// Try to insert `.module(modules::<name>::define())` into
+/// `src/main.rs` next to existing `.module(...)` calls (or right after
+/// `bootstrap()` if none).
+fn try_register_module_in_main(root: &Path, name: &str) -> Result<RegisterOutcome, GenerateError> {
+    let main_rs = root.join("src/main.rs");
+    if !main_rs.is_file() {
+        return Ok(RegisterOutcome::TargetMissing);
+    }
+    let mut contents = fs::read_to_string(&main_rs).map_err(|e| GenerateError::Io {
+        path: main_rs.clone(),
+        source: e,
+    })?;
+
+    let signature = format!("modules::{name}::define()");
+    if contents.contains(&signature) {
+        return Ok(RegisterOutcome::AlreadyRegistered);
+    }
+
+    let call = format!(".module(modules::{name}::define())");
+    let inserted = insert_chain_call_after_anchor(&mut contents, ".module(modules::", &call)
+        || insert_chain_call_after_anchor(&mut contents, "bootstrap()", &call);
+    if !inserted {
+        return Ok(RegisterOutcome::AnchorNotFound);
+    }
+
+    fs::write(&main_rs, contents).map_err(|e| GenerateError::Io {
+        path: main_rs.clone(),
+        source: e,
+    })?;
+    Ok(RegisterOutcome::Inserted)
 }
 
 /// Idempotently append `pub mod <name>;` to `target` if it isn't
@@ -268,6 +322,9 @@ pub struct GenerateServiceArgs {
     pub project_root: Option<PathBuf>,
     /// Overwrite the service file if it already exists.
     pub force: bool,
+    /// Try to auto-insert `use <name>::<Pascal>;` + `.service::<Pascal>()`
+    /// into the parent module's `mod.rs`.
+    pub auto_register: bool,
 }
 
 /// Split `<module>/<name>` and validate each half. Shared by `g service`
@@ -288,9 +345,17 @@ fn parse_kind_spec(spec: &str) -> Result<(&str, &str), GenerateError> {
     Ok((module, name))
 }
 
-/// Run the `g service <module>/<service_snake>` flow. Returns the
-/// path that was written.
-pub fn generate_service(args: &GenerateServiceArgs) -> Result<PathBuf, GenerateError> {
+/// Result of `generate_service` — the file written + auto-register outcome.
+#[derive(Debug)]
+pub struct GenerateServiceResult {
+    pub file: PathBuf,
+    pub register: RegisterOutcome,
+}
+
+/// Run the `g service <module>/<service_snake>` flow.
+pub fn generate_service(
+    args: &GenerateServiceArgs,
+) -> Result<GenerateServiceResult, GenerateError> {
     let (module, service_snake) = parse_kind_spec(&args.spec)?;
     let service_pascal = to_pascal_case(service_snake);
 
@@ -321,7 +386,81 @@ pub fn generate_service(args: &GenerateServiceArgs) -> Result<PathBuf, GenerateE
 
     ensure_pub_mod_line(&module_mod_rs, service_snake)?;
 
-    Ok(service_file)
+    let register = if args.auto_register {
+        try_register_in_define_builder(
+            &module_mod_rs,
+            service_snake,
+            &service_pascal,
+            DefineBuilderKind::Service,
+        )?
+    } else {
+        RegisterOutcome::Skipped
+    };
+
+    Ok(GenerateServiceResult {
+        file: service_file,
+        register,
+    })
+}
+
+/// Which builder method to insert. The format of the call differs
+/// between services (`.service::<X>()`) and contributors (`.contribute(X)`).
+#[derive(Clone, Copy)]
+enum DefineBuilderKind {
+    Service,
+    Contributor,
+}
+
+impl DefineBuilderKind {
+    fn anchor_substring(self) -> &'static str {
+        match self {
+            Self::Service => ".service::<",
+            Self::Contributor => ".contribute(",
+        }
+    }
+    fn call(self, pascal: &str) -> String {
+        match self {
+            Self::Service => format!(".service::<{pascal}>()"),
+            Self::Contributor => format!(".contribute({pascal})"),
+        }
+    }
+}
+
+/// Insert a `use <name>::<Pascal>;` + the appropriate builder call
+/// into the parent module's `mod.rs`. Idempotent against re-runs.
+fn try_register_in_define_builder(
+    module_mod_rs: &Path,
+    snake: &str,
+    pascal: &str,
+    kind: DefineBuilderKind,
+) -> Result<RegisterOutcome, GenerateError> {
+    let mut contents = fs::read_to_string(module_mod_rs).map_err(|e| GenerateError::Io {
+        path: module_mod_rs.to_path_buf(),
+        source: e,
+    })?;
+
+    let call = kind.call(pascal);
+    if contents.contains(&call) {
+        return Ok(RegisterOutcome::AlreadyRegistered);
+    }
+
+    // `use` line — add only if missing.
+    let use_line = format!("use {snake}::{pascal};");
+    if !contents.lines().any(|l| l.trim() == use_line) {
+        insert_use_after_last_use(&mut contents, &use_line);
+    }
+
+    let inserted = insert_chain_call_after_anchor(&mut contents, kind.anchor_substring(), &call)
+        || insert_chain_call_after_anchor(&mut contents, "define_module(", &call);
+    if !inserted {
+        return Ok(RegisterOutcome::AnchorNotFound);
+    }
+
+    fs::write(module_mod_rs, contents).map_err(|e| GenerateError::Io {
+        path: module_mod_rs.to_path_buf(),
+        source: e,
+    })?;
+    Ok(RegisterOutcome::Inserted)
 }
 
 // ────────────────────────── g contributor ────────────────────────────
@@ -334,11 +473,22 @@ pub struct GenerateContributorArgs {
     pub project_root: Option<PathBuf>,
     /// Overwrite the contributor file if it already exists.
     pub force: bool,
+    /// Try to auto-insert `use <name>::<Pascal>;` + `.contribute(Pascal)`
+    /// into the parent module's `mod.rs`.
+    pub auto_register: bool,
 }
 
-/// Run the `g contributor <module>/<contributor_snake>` flow. Returns
-/// the path that was written.
-pub fn generate_contributor(args: &GenerateContributorArgs) -> Result<PathBuf, GenerateError> {
+/// Result of `generate_contributor`.
+#[derive(Debug)]
+pub struct GenerateContributorResult {
+    pub file: PathBuf,
+    pub register: RegisterOutcome,
+}
+
+/// Run the `g contributor <module>/<contributor_snake>` flow.
+pub fn generate_contributor(
+    args: &GenerateContributorArgs,
+) -> Result<GenerateContributorResult, GenerateError> {
     let (module, snake) = parse_kind_spec(&args.spec)?;
     let pascal = to_pascal_case(snake);
 
@@ -369,7 +519,18 @@ pub fn generate_contributor(args: &GenerateContributorArgs) -> Result<PathBuf, G
 
     ensure_pub_mod_line(&module_mod_rs, snake)?;
 
-    Ok(file)
+    let register = if args.auto_register {
+        try_register_in_define_builder(
+            &module_mod_rs,
+            snake,
+            &pascal,
+            DefineBuilderKind::Contributor,
+        )?
+    } else {
+        RegisterOutcome::Skipped
+    };
+
+    Ok(GenerateContributorResult { file, register })
 }
 
 #[cfg(test)]
@@ -434,15 +595,16 @@ mod tests {
             name: "posts".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         };
-        let module_dir = generate_module(&args).unwrap();
-        assert_eq!(module_dir, root.join("src/modules/posts"));
+        let res = generate_module(&args).unwrap();
+        assert_eq!(res.module_dir, root.join("src/modules/posts"));
 
-        let mod_rs = fs::read_to_string(module_dir.join("mod.rs")).unwrap();
+        let mod_rs = fs::read_to_string(res.module_dir.join("mod.rs")).unwrap();
         assert!(mod_rs.contains(r#"define_module("posts")"#));
         assert!(mod_rs.contains(r#".prefix("/posts")"#));
 
-        let handlers_rs = fs::read_to_string(module_dir.join("handlers.rs")).unwrap();
+        let handlers_rs = fs::read_to_string(res.module_dir.join("handlers.rs")).unwrap();
         assert!(handlers_rs.contains("posts index"));
 
         // `pub mod posts;` got appended exactly once.
@@ -461,6 +623,7 @@ mod tests {
             name: "posts".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         };
         generate_module(&args).unwrap();
 
@@ -490,6 +653,7 @@ mod tests {
             name: "posts".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap_err();
         assert!(matches!(err, GenerateError::ModuleExists(_)), "got {err:?}");
@@ -570,16 +734,17 @@ mod tests {
         let root = tmp.path().join("proj");
         make_skeleton_with_module(&root, "users");
 
-        let written = generate_service(&GenerateServiceArgs {
+        let res = generate_service(&GenerateServiceArgs {
             spec: "users/email_sender".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap();
 
-        assert_eq!(written, root.join("src/modules/users/email_sender.rs"),);
+        assert_eq!(res.file, root.join("src/modules/users/email_sender.rs"));
 
-        let body = fs::read_to_string(&written).unwrap();
+        let body = fs::read_to_string(&res.file).unwrap();
         assert!(body.contains("pub struct EmailSender"));
         assert!(body.contains(r#""email_sender ready""#));
 
@@ -602,6 +767,7 @@ mod tests {
             spec: "users/email_sender".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap_err();
         assert!(
@@ -625,6 +791,7 @@ mod tests {
             spec: "users/email_sender".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap_err();
         assert!(matches!(err, GenerateError::FileExists(_)), "got {err:?}");
@@ -640,6 +807,7 @@ mod tests {
             spec: "users/email_sender".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         };
         generate_service(&args).unwrap();
 
@@ -647,6 +815,7 @@ mod tests {
             spec: "users/email_sender".into(),
             project_root: Some(root.clone()),
             force: true,
+            auto_register: false,
         };
         generate_service(&force_args).unwrap();
 
@@ -666,16 +835,20 @@ mod tests {
         let root = tmp.path().join("proj");
         make_skeleton_with_module(&root, "users");
 
-        let written = generate_contributor(&GenerateContributorArgs {
+        let res = generate_contributor(&GenerateContributorArgs {
             spec: "users/load_current_user".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap();
 
-        assert_eq!(written, root.join("src/modules/users/load_current_user.rs"),);
+        assert_eq!(
+            res.file,
+            root.join("src/modules/users/load_current_user.rs")
+        );
 
-        let body = fs::read_to_string(&written).unwrap();
+        let body = fs::read_to_string(&res.file).unwrap();
         // PascalCase derived from snake_case for both the contributor
         // fn and its output struct.
         assert!(body.contains("pub async fn LoadCurrentUser("));
@@ -702,6 +875,7 @@ mod tests {
             spec: "users/load_current_user".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap_err();
         assert!(
@@ -725,6 +899,7 @@ mod tests {
             spec: "users/load_current_user".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap_err();
         assert!(matches!(err, GenerateError::FileExists(_)), "got {err:?}");
@@ -740,12 +915,14 @@ mod tests {
             spec: "users/load_current_user".into(),
             project_root: Some(root.clone()),
             force: false,
+            auto_register: false,
         })
         .unwrap();
         generate_contributor(&GenerateContributorArgs {
             spec: "users/load_current_user".into(),
             project_root: Some(root.clone()),
             force: true,
+            auto_register: false,
         })
         .unwrap();
 
@@ -755,5 +932,173 @@ mod tests {
             1,
             "double-append on second generate: {mod_rs}"
         );
+    }
+
+    // ────────────── auto-register paths ──────────────
+
+    /// Make a more realistic project that has both `src/main.rs` (with
+    /// a bootstrap chain) and a module's `mod.rs` (with a define()
+    /// builder) — covers both auto-register targets.
+    fn make_skeleton_with_main_and_define(dir: &Path, module: &str) {
+        make_skeleton_with_module(dir, module);
+        // Overwrite the module mod.rs with one that has a proper
+        // define() chain so .service::<...>() / .contribute(...) can be
+        // inserted into a real chain.
+        fs::write(
+            dir.join("src/modules").join(module).join("mod.rs"),
+            format!(
+                "//! `{module}` resource.\n\
+                 pub mod handlers;\n\
+                 \n\
+                 use kick_rs::{{define_module, Module}};\n\
+                 \n\
+                 pub fn define() -> Module {{\n    \
+                     define_module(\"{module}\")\n        \
+                         .prefix(\"/{module}\")\n        \
+                         .build()\n\
+                 }}\n",
+            ),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/main.rs"),
+            "use kick_rs::{bootstrap, KickResult};\n\
+             mod modules;\n\
+             \n\
+             #[tokio::main]\n\
+             async fn main() -> KickResult<()> {\n    \
+                 bootstrap()\n        \
+                     .listen(\"0.0.0.0:3000\")\n        \
+                     .await\n\
+             }\n",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn generate_module_auto_registers_in_main() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_main_and_define(&root, "users");
+
+        let res = generate_module(&GenerateModuleArgs {
+            name: "posts".into(),
+            project_root: Some(root.clone()),
+            force: false,
+            auto_register: true,
+        })
+        .unwrap();
+        assert_eq!(res.register, RegisterOutcome::Inserted);
+
+        let main_rs = fs::read_to_string(root.join("src/main.rs")).unwrap();
+        assert!(
+            main_rs.contains("    .module(modules::posts::define())"),
+            "got: {main_rs}"
+        );
+    }
+
+    #[test]
+    fn generate_module_auto_register_is_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_main_and_define(&root, "users");
+
+        // First pass inserts.
+        let first = generate_module(&GenerateModuleArgs {
+            name: "posts".into(),
+            project_root: Some(root.clone()),
+            force: false,
+            auto_register: true,
+        })
+        .unwrap();
+        assert_eq!(first.register, RegisterOutcome::Inserted);
+
+        // Second pass with --force: should detect the existing
+        // registration and skip the re-insert.
+        let second = generate_module(&GenerateModuleArgs {
+            name: "posts".into(),
+            project_root: Some(root.clone()),
+            force: true,
+            auto_register: true,
+        })
+        .unwrap();
+        assert_eq!(second.register, RegisterOutcome::AlreadyRegistered);
+
+        let main_rs = fs::read_to_string(root.join("src/main.rs")).unwrap();
+        assert_eq!(
+            main_rs.matches(".module(modules::posts::define())").count(),
+            1
+        );
+    }
+
+    #[test]
+    fn generate_service_auto_registers_use_and_call() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_main_and_define(&root, "users");
+
+        let res = generate_service(&GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: false,
+            auto_register: true,
+        })
+        .unwrap();
+        assert_eq!(res.register, RegisterOutcome::Inserted);
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert!(
+            mod_rs.contains("use email_sender::EmailSender;"),
+            "missing use line: {mod_rs}"
+        );
+        assert!(
+            mod_rs.contains(".service::<EmailSender>()"),
+            "missing service call: {mod_rs}"
+        );
+    }
+
+    #[test]
+    fn generate_contributor_auto_registers_use_and_call() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_main_and_define(&root, "users");
+
+        let res = generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: false,
+            auto_register: true,
+        })
+        .unwrap();
+        assert_eq!(res.register, RegisterOutcome::Inserted);
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert!(
+            mod_rs.contains("use load_current_user::LoadCurrentUser;"),
+            "missing use line: {mod_rs}"
+        );
+        assert!(
+            mod_rs.contains(".contribute(LoadCurrentUser)"),
+            "missing contribute call: {mod_rs}"
+        );
+    }
+
+    #[test]
+    fn generate_module_falls_back_when_no_main_rs() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton(&root); // no src/main.rs
+
+        let res = generate_module(&GenerateModuleArgs {
+            name: "posts".into(),
+            project_root: Some(root.clone()),
+            force: false,
+            auto_register: true,
+        })
+        .unwrap();
+        // No main.rs => caller gets a clear signal to print the manual hint.
+        assert_eq!(res.register, RegisterOutcome::TargetMissing);
+        // File emission and pub-mod-append still happened.
+        assert!(root.join("src/modules/posts/mod.rs").is_file());
     }
 }

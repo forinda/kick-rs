@@ -34,6 +34,8 @@ fn scaffolded_project_compiles() {
         path: Some(target.clone()),
         force: false,
     };
+    // Note: `new::NewArgs` has no auto_register field — auto-register
+    // is a `generate::*` concern, not a scaffold concern.
     kick_rs_cli::new::run(&args).expect("scaffold failed");
 
     // Point the scaffold at the *local* workspace crates so we test
