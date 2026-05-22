@@ -33,6 +33,24 @@ impl Plugin for RequestIdPlugin {
     fn name(&self) -> &str {
         "request-id"
     }
+
+    fn introspect(&self) -> Option<kick_rs_core::IntrospectionSnapshot> {
+        // First built-in plugin to opt into the DevTools snapshot.
+        // The state is intentionally static — there's no per-request
+        // tracking on this plugin — but a non-empty body still tells
+        // adopters that the plugin is wired up correctly.
+        Some(kick_rs_core::IntrospectionSnapshot {
+            protocol_version: 1,
+            kind: kick_rs_core::IntrospectionKind::Plugin,
+            name: self.name().to_owned(),
+            state: serde_json::json!({
+                "header": HEADER,
+                "id_format": "uuid-v7-or-passthrough",
+            }),
+            tokens: vec!["RequestId".to_owned()],
+            memory_bytes: None,
+        })
+    }
 }
 
 impl crate::HttpPlugin for RequestIdPlugin {
