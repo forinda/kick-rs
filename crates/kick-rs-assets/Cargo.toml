@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-assets"
-version     = "0.1.0-alpha.1"
+version     = "0.1.0-alpha.2"
 description = "Typed asset manifest + compile-time embedding for kick-rs"
 readme      = "README.md"
 edition.workspace      = true

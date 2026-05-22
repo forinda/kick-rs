@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-config"
-version     = "0.1.0-alpha.2"
+version     = "0.1.0-alpha.3"
 description = "Layered, typed configuration loader for kick-rs (defaults + env + dotenv + toml + json)"
 readme      = "README.md"
 edition.workspace      = true

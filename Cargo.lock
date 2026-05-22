@@ -635,7 +635,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.1.0-alpha.4"
+version = "0.1.0-alpha.5"
 dependencies = [
  "kick-rs-assets",
  "kick-rs-config",
@@ -646,7 +646,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-assets"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "include_dir",
  "kick-rs-core",
@@ -666,7 +666,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-config"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "kick-rs-core",
  "serde",
@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-core"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "async-trait",
  "serde",
@@ -689,7 +689,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-http"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "async-trait",
  "axum",
@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-macros"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "axum",
  "kick-rs-core",
