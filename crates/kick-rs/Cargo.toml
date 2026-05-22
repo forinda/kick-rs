@@ -26,6 +26,12 @@ config = ["dep:kick-rs-config"]
 # macro path resolution). Opt-in because it pulls in `utoipa`.
 openapi = ["kick-rs-http/openapi"]
 
+# Enables the DevTools `/__debug` introspection endpoint on
+# `kick-rs-http`. After enabling the feature, adopters still have to
+# call `.with_devtools()` on `bootstrap()` to actually mount the route
+# — two opt-ins by design.
+devtools = ["kick-rs-http/devtools"]
+
 # `assets` is still parked — lands once `kick-rs-assets` reaches
 # publish-ready state. Adopters needing it early can depend on the
 # crate directly.

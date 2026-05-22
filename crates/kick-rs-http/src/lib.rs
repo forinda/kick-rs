@@ -19,6 +19,8 @@
 
 pub mod bootstrap;
 pub mod contributors;
+#[cfg(feature = "devtools")]
+pub mod devtools;
 pub mod error;
 pub mod http_plugin;
 pub mod inject;

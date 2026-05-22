@@ -35,6 +35,14 @@ plugin-trace-context  = ["dep:uuid"]                # for trace-id / span-id min
 # `OpenApiPlugin`.
 openapi = ["dep:utoipa"]
 
+# DevTools `/__debug` endpoint. Off by default — turns
+# `Bootstrap::with_devtools()` on, which mounts an introspection route
+# returning a JSON snapshot of modules / plugins / adapters /
+# contributors. Adopters must explicitly enable this AND call
+# `.with_devtools()` — defense-in-depth against accidentally exposing
+# internals in production builds.
+devtools = []
+
 [dependencies]
 kick-rs-core = { workspace = true }
 axum          = { workspace = true }
