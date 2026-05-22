@@ -56,19 +56,29 @@ name = "rustkick"
 git_tag_name = "rustkick-v{{ version }}"
 
 # ── Gated (placeholders, not yet ready to publish) ───────────────────────
+#
+# These crates carry `publish = false` in their Cargo.toml. release-plz
+# requires both fields to match — Cargo.toml says "don't publish",
+# release-plz config must explicitly acknowledge that. Otherwise the
+# `release-publish` job aborts with a config-mismatch error before doing
+# anything useful.
 
 [[package]]
 name = "rustkick-macros"
 release = false              # Phase 3 — flip when proc-macros land
+publish = false              # mirrors crates/rustkick-macros/Cargo.toml
 
 [[package]]
 name = "rustkick-config"
 release = false              # Phase 5 — flip when env loader lands
+publish = false              # mirrors crates/rustkick-config/Cargo.toml
 
 [[package]]
 name = "rustkick-assets"
 release = false              # Phase 5 — flip when asset manifest lands
+publish = false              # mirrors crates/rustkick-assets/Cargo.toml
 
 [[package]]
 name = "rustkick-cli"
 release = false              # Phase 5 — flip when CLI lands
+publish = false              # mirrors crates/rustkick-cli/Cargo.toml
