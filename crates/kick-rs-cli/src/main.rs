@@ -6,8 +6,9 @@
 //! - `g service <module>/<service_name>`        — generate a `#[service]`-derived stub
 //! - `g contributor <module>/<contributor>`     — generate a `#[contributor]` async fn
 //! - `add <feature>`                            — toggle an opt-in `kick-rs` feature in Cargo.toml
+//! - `info`                                     — print a snapshot of the current project
 //!
-//! Future subcommands (`dev`, `info`, `check`) land in later phases;
+//! Future subcommands (`dev`, `check`) land in later phases;
 //! see SPEC.md §7.
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
@@ -16,7 +17,7 @@
 
 use clap::{Parser, Subcommand};
 use kick_rs_cli::register::RegisterOutcome;
-use kick_rs_cli::{add, generate, new};
+use kick_rs_cli::{add, generate, info, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -56,6 +57,19 @@ enum Command {
     Generate {
         #[command(subcommand)]
         kind: Generate,
+    },
+
+    /// Print a snapshot of the current project — package version,
+    /// kick-rs dep version + features, and every module on disk with
+    /// the services and contributors registered on each.
+    Info {
+        /// Override the project root.
+        #[arg(long)]
+        path: Option<PathBuf>,
+
+        /// Dep name to inspect (defaults to `kick-rs`).
+        #[arg(long, default_value = "kick-rs")]
+        dep_name: String,
     },
 
     /// Toggle an opt-in `kick-rs` feature on the umbrella dep in
@@ -272,6 +286,22 @@ fn main() -> ExitCode {
                             "use {snake}::{pascal};\n        ...\n        .contribute({pascal})"
                         ),
                     );
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Info { path, dep_name } => {
+            let args = info::InfoArgs {
+                project_root: path,
+                dep_name,
+            };
+            match info::collect_info(&args) {
+                Ok(snapshot) => {
+                    print!("{}", info::render_info(&snapshot));
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
