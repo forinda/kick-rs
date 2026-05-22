@@ -371,12 +371,15 @@ dependencies = [
 name = "kick-rs-macros"
 version = "0.0.2"
 dependencies = [
+ "axum",
  "kick-rs-core",
+ "kick-rs-http",
  "proc-macro-crate",
  "proc-macro2",
  "quote",
  "syn",
  "tokio",
+ "tower",
 ]
 
 [[package]]

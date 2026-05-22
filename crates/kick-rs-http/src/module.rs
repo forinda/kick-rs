@@ -217,6 +217,48 @@ impl HttpModuleBuilder {
         self.route(axum::routing::delete(handler), path)
     }
 
+    /// Attach a route registered by the `#[get]`/`#[post]`/etc.
+    /// attribute macros from `kick-rs-macros`. Each macro generates a
+    /// `pub fn <handler>_route(Router) -> Router` next to the handler;
+    /// pass that fn here to mount it on the module.
+    ///
+    /// ```ignore
+    /// #[get("/users/:id")]
+    /// async fn show(svc: Inject<UserService>) -> Json<User> { … }
+    ///
+    /// define_module("users")
+    ///     .handler(show_route)
+    ///     .build()
+    /// ```
+    ///
+    /// The explicit `.get(path, fn)` / `.post(path, fn)` style still
+    /// works — `.handler(...)` is the macro-driven complement, not a
+    /// replacement.
+    pub fn handler<F>(mut self, registrar: F) -> Self
+    where
+        F: FnOnce(Router) -> Router + Send + 'static,
+    {
+        self.routes.push(Box::new(registrar));
+        self
+    }
+
+    /// Attach multiple `_route` registrars in one chain. Convenience
+    /// over calling `.handler(...)` per item.
+    ///
+    /// ```ignore
+    /// define_module("users").handlers([show_route, list_route, create_route]).build()
+    /// ```
+    pub fn handlers<I, F>(mut self, iter: I) -> Self
+    where
+        I: IntoIterator<Item = F>,
+        F: FnOnce(Router) -> Router + Send + 'static,
+    {
+        for registrar in iter {
+            self.routes.push(Box::new(registrar));
+        }
+        self
+    }
+
     fn route(mut self, method_router: axum::routing::MethodRouter, path: &str) -> Self {
         let full_path = if self.prefix.is_empty() {
             path.to_owned()

@@ -111,6 +111,55 @@ Rules:
 
 Use PascalCase function names — they become the generated struct.
 
+## Route attribute macros
+
+`#[get("/path")]`, `#[post("/path")]`, `#[put("/path")]`,
+`#[patch("/path")]`, `#[delete("/path")]` — collocate the HTTP method
+and path with the handler. The macros leave the function intact and
+emit a sibling `<handler>_route(Router) -> Router` registrar that
+mounts the handler at the right method + path.
+
+```rust
+use kick_rs::*;
+use kick_rs_macros::{get, post};
+use axum::Json;
+use uuid::Uuid;
+
+#[get("/users/:id")]
+async fn show(svc: Inject<UserService>, axum::extract::Path(id): axum::extract::Path<Uuid>)
+    -> Json<User>
+{ /* … */ }
+
+#[post("/users")]
+async fn create(svc: Inject<UserService>, Json(body): Json<CreateUser>)
+    -> Json<User>
+{ /* … */ }
+
+let users = define_module("users")
+    .handler(show_route)
+    .handler(create_route)
+    .build();
+// or
+let users = define_module("users")
+    .handlers([show_route, create_route])
+    .build();
+```
+
+Notes:
+
+- The macros generate a `pub fn` so visibility carries through from the
+  attributed function. Cross-module mounting works as-is.
+- The mounted path is the literal string in the attribute. Module
+  `.prefix("/api")` does **not** prepend to macro-driven routes — by
+  design. If you want the prefix, write the full path in the attribute.
+  Module-level prefix still works for the existing `.get(path, fn)`
+  style.
+- The path string passes through to `axum::Router::route` unchanged, so
+  axum's path syntax (`:id`, `*wildcard`) works as documented in axum's
+  own docs.
+- The two styles coexist: the explicit `.get(path, fn)` / `.post(...)`
+  builder methods are still there. The macros are sugar, not a replacement.
+
 ## `#[handler]`
 
 Currently a pass-through placeholder. Reserved for future codegen
