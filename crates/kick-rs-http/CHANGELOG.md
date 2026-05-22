@@ -10,6 +10,21 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.1.0-alpha.1...kick-rs-http-v0.1.0-alpha.2) - 2026-05-22
+
+### Added
+
+- *(http)* DevTools /__debug introspection endpoint
+- *(macros,http)* paths!(...) — bulk OpenAPI path registration
+- *(http)* auto-collect OpenAPI paths from modules
+- *(http)* OpenApiPlugin — serve a utoipa spec at /openapi.json
+- *(http)* HelmetPlugin + TraceContextPlugin
+- *(http)* built-in plugins — request_id, request_logger, cors, compression
+
+### Other
+
+- release
+
 ## [0.1.0-alpha.1](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.0.3...kick-rs-http-v0.1.0-alpha.1) - 2026-05-22
 
 ### Added

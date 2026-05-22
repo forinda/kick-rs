@@ -11,6 +11,19 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.2](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.1...kick-rs-v0.1.0-alpha.2) - 2026-05-22
+
+### Added
+
+- *(http)* DevTools /__debug introspection endpoint
+- *(macros,http)* paths!(...) — bulk OpenAPI path registration
+- *(config)* real layered Config loader (defaults + file + env)
+
+### Other
+
+- *(examples)* wire OpenAPI through users-api via paths!()
+- release
+
 ## [0.1.0-alpha.1](https://github.com/forinda/kick-rs/compare/kick-rs-v0.0.3...kick-rs-v0.1.0-alpha.1) - 2026-05-22
 
 ### Other
