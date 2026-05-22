@@ -42,6 +42,7 @@
 //! boot, and runs sequentially per request. Missing deps fail boot with
 //! `RK_E_MISSING_CONTRIBUTOR`; cycles fail with `RK_E_CONTRIBUTOR_CYCLE`.
 
+use crate::container::Container;
 use crate::error::{KickError, KickResult};
 use std::any::{Any, TypeId};
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -52,10 +53,21 @@ use std::sync::Arc;
 // ─────────────────────────── Storage interface ───────────────────────────
 
 /// Read-side view of the per-request value store. Contributors and
-/// handlers look up upstream-produced values through this trait.
+/// handlers look up upstream-produced values through this trait, plus
+/// the per-app [`Container`] when DI resolution is needed inside a
+/// contributor's `resolve` body.
 pub trait ContributorRequest: Send + Sync {
     /// Lookup a previously-inserted value by its [`TypeId`].
     fn try_get(&self, ty: TypeId) -> Option<&(dyn Any + Send + Sync)>;
+
+    /// Access the app DI container, if the request carries one. Returns
+    /// `None` for bare [`ContributorStore::new()`] instances (used in
+    /// unit tests). The HTTP middleware always populates this so
+    /// production contributors can safely `inject::<T>()` from inside
+    /// `resolve()`.
+    fn container(&self) -> Option<&Container> {
+        None
+    }
 }
 
 /// Write-side view — the pipeline runner uses this to insert each
@@ -66,13 +78,32 @@ pub trait MutableContributorRequest: ContributorRequest {
     fn insert(&mut self, ty: TypeId, value: Box<dyn Any + Send + Sync>);
 }
 
-/// Helper: convenience method for callers who know `T` statically.
+/// Helper: convenience methods for callers who know `T` statically.
 pub trait ContributorRequestExt: ContributorRequest {
-    /// Typed lookup — returns `Some(&T)` if a value of type `T` is in
-    /// the store. Built on [`ContributorRequest::try_get`].
+    /// Typed lookup of an upstream contributor's output — returns
+    /// `Some(&T)` if a value of type `T` is in the store. Built on
+    /// [`ContributorRequest::try_get`].
     fn get<T: 'static + Send + Sync>(&self) -> Option<&T> {
         self.try_get(TypeId::of::<T>())
             .and_then(|v| v.downcast_ref::<T>())
+    }
+
+    /// Resolve a DI singleton/transient from the request's container.
+    /// Panics if no container is attached (only happens in bare
+    /// in-memory `ContributorStore` instances used in unit tests).
+    fn inject<T: 'static + Send + Sync>(&self) -> Arc<T> {
+        self.container()
+            .expect(
+                "ContributorRequest::inject called without a container — \
+                 use ContributorStore::with_container or the HTTP layer",
+            )
+            .resolve::<T>()
+    }
+
+    /// Best-effort resolve — returns `None` if no container is attached
+    /// or `T` isn't registered.
+    fn try_inject<T: 'static + Send + Sync>(&self) -> Option<Arc<T>> {
+        self.container().and_then(|c| c.try_resolve::<T>())
     }
 }
 impl<T: ContributorRequest + ?Sized> ContributorRequestExt for T {}
@@ -85,12 +116,30 @@ impl<T: ContributorRequest + ?Sized> ContributorRequestExt for T {}
 #[derive(Default, Clone)]
 pub struct ContributorStore {
     items: HashMap<TypeId, Arc<dyn Any + Send + Sync>>,
+    container: Option<Container>,
 }
 
 impl ContributorStore {
-    /// Create an empty store.
+    /// Create an empty store with no container attached. Convenient for
+    /// unit tests where contributors don't need DI; production paths
+    /// should use [`Self::with_container`].
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create an empty store wired to a DI container. Contributors that
+    /// resolve services from inside `resolve()` need this.
+    pub fn with_container(container: Container) -> Self {
+        Self {
+            items: HashMap::new(),
+            container: Some(container),
+        }
+    }
+
+    /// Attach a container to an existing store. Returns the previous
+    /// container handle, if any.
+    pub fn set_container(&mut self, c: Container) -> Option<Container> {
+        self.container.replace(c)
     }
 
     /// Number of values inserted so far.
@@ -114,6 +163,9 @@ impl ContributorStore {
 impl ContributorRequest for ContributorStore {
     fn try_get(&self, ty: TypeId) -> Option<&(dyn Any + Send + Sync)> {
         self.items.get(&ty).map(|a| a.as_ref())
+    }
+    fn container(&self) -> Option<&Container> {
+        self.container.as_ref()
     }
 }
 
@@ -603,6 +655,54 @@ mod tests {
         let err =
             ContributorPipeline::build(vec![erase(WantsRight), erase(WantsLeft)]).unwrap_err();
         assert_eq!(err.code, "RK_E_CONTRIBUTOR_CYCLE");
+    }
+
+    // ── Container access via ContributorRequest::container() ────────────────
+
+    struct ReadTenant {
+        tenant_id: u32,
+    }
+
+    struct LoadTenantFromDi;
+    impl ContextContributor for LoadTenantFromDi {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(
+            &'a self,
+            ctx: &'a dyn ContributorRequest,
+            _: (),
+        ) -> KickResult<Tenant> {
+            // DI-resolve the tenant id from a singleton bound by the
+            // user (typical case: an auth header is parsed elsewhere
+            // and the result registered as a request-scoped singleton).
+            // For this unit test we register at boot.
+            let cfg = ctx.inject::<ReadTenant>();
+            Ok(Tenant { id: cfg.tenant_id })
+        }
+    }
+
+    #[tokio::test]
+    async fn contributor_can_inject_from_container() {
+        use crate::Container;
+
+        let container = Container::builder()
+            .singleton(ReadTenant { tenant_id: 99 })
+            .build()
+            .unwrap();
+
+        let p = ContributorPipeline::build(vec![erase(LoadTenantFromDi)]).unwrap();
+        let mut store = ContributorStore::with_container(container);
+        p.run(&mut store).await.unwrap();
+
+        assert_eq!(store.get::<Tenant>(), Some(&Tenant { id: 99 }));
+    }
+
+    #[tokio::test]
+    async fn try_inject_handles_missing_container_gracefully() {
+        // Bare ContributorStore::new() has no container — try_inject
+        // returns None instead of panicking.
+        let store = ContributorStore::new();
+        assert!(store.try_inject::<ReadTenant>().is_none());
     }
 
     #[tokio::test]

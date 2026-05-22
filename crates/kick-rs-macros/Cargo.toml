@@ -25,3 +25,4 @@ proc-macro-crate  = "3"
 # Integration tests need both the macro (this crate) and the trait it
 # targets (kick-rs-core).
 kick-rs-core = { workspace = true }
+tokio        = { workspace = true }

@@ -96,7 +96,10 @@ where
 
 /// Axum middleware that runs the contributor pipeline against a fresh
 /// store and stashes the populated store on the request for downstream
-/// handlers and extractors.
+/// handlers and extractors. The store is wired to the app's
+/// [`Container`](kick_rs_core::Container) (pulled from the request's
+/// `Extension`) so contributors can call `ctx.inject::<T>()` from
+/// inside `resolve()`.
 ///
 /// Install via [`Bootstrap`](crate::Bootstrap) — direct use is for
 /// adopters wiring axum manually.
@@ -105,7 +108,21 @@ pub async fn contributors_middleware(
     mut req: Request,
     next: Next,
 ) -> Result<Response, HttpError> {
-    let mut store = ContributorStore::new();
+    let container = req
+        .extensions()
+        .get::<kick_rs_core::Container>()
+        .cloned()
+        .ok_or_else(|| {
+            HttpError::from(
+                kick_rs_core::KickError::new(
+                    "RK_H_NO_CONTAINER",
+                    "contributors middleware ran without a Container in extensions",
+                )
+                .with_hint("Bootstrap installs `Extension(Container)` before this layer"),
+            )
+        })?;
+
+    let mut store = ContributorStore::with_container(container);
     pipeline.run(&mut store).await.map_err(HttpError::from)?;
     req.extensions_mut().insert(store);
     Ok(next.run(req).await)
