@@ -12,6 +12,11 @@
 //!    [`EmbeddedAssets`] handle for lookup at runtime. Gated on the
 //!    default `embed` feature.
 //!
+//!    **Note**: the macro expands to `::include_dir::*` paths, so
+//!    consumers must add `include_dir = "0.7"` to their own
+//!    `Cargo.toml`. We can't shield adopters from that without a
+//!    proc-macro wrapper (planned).
+//!
 //! HTTP serving (responding to `GET /static/...` with the right
 //! content-type, cache headers, and falling through to the manifest)
 //! lives in [`kick-rs-http`]'s `AssetsPlugin` — kept there so this
