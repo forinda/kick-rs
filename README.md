@@ -58,6 +58,60 @@ for what's next.
 
 ---
 
+## Context contributors
+
+The most distinctive piece in the framework. A
+[`ContextContributor`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ContextContributor.html)
+declares a *per-request* value with typed dependencies on other
+contributors' outputs. The pipeline runs once per request, topo-sorted
+so each `Deps` tuple sees `&T` references to upstream-produced values.
+Missing producers and dep cycles fail at **boot**, not at request
+time.
+
+```rust
+struct LoadTenant;
+impl ContextContributor for LoadTenant {
+    type Key = Tenant;
+    type Deps = ();
+    async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, _: ()) -> KickResult<Tenant> {
+        // …extract from request headers, JWT, etc.
+        Ok(Tenant { slug: "acme".into() })
+    }
+}
+
+struct LoadTenantDb;
+impl ContextContributor for LoadTenantDb {
+    type Key = TenantDb;
+    type Deps = (Tenant,);                    // typed dep — pipeline orders us after LoadTenant
+    async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, (t,): (&'a Tenant,)) -> KickResult<TenantDb> {
+        Ok(TenantDb::for_tenant(&t.slug).await?)
+    }
+}
+
+// Mount on bootstrap (global), a module, or a plugin — pipeline aggregates all of them
+bootstrap()
+    .contribute(LoadTenant)
+    .contribute(LoadTenantDb)
+    .module(users_module())
+    .listen("0.0.0.0:3000").await
+```
+
+Handlers pull contributor outputs via `Ctx<T>`:
+
+```rust
+async fn show(tenant: Ctx<Tenant>, db: Ctx<TenantDb>) -> Json<Stats> { /* … */ }
+```
+
+This is the pattern that makes per-tenant DB instantiation, request-id
+propagation, current-user resolution, etc. fall out as plain typed code
+— no framework-internal magic, no string lookups.
+
+Full design lives in [SPEC §4.6](./SPEC.md#46-context-contributor);
+runtime details in [ARCHITECTURE §5](./ARCHITECTURE.md#5-context-contributor-pipeline);
+working API on [docs.rs/kick-rs-core](https://docs.rs/kick-rs-core).
+
+---
+
 ## Why a Rust port?
 
 KickJS gave Node.js developers NestJS ergonomics without the complexity —

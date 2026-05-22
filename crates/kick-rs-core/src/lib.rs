@@ -28,7 +28,11 @@ pub use adapter::{
     define_adapter, Adapter, AdapterContext, AdapterDef, AdapterFactory, BuildContext,
 };
 pub use container::{Container, ContainerBuilder};
-pub use contributor::ContextContributor;
+pub use contributor::{
+    erase as erase_contributor, AnyContributor, ContextContributor, ContributorDeps,
+    ContributorPipeline, ContributorRequest, ContributorRequestExt, ContributorStore,
+    ErasedContributor, MutableContributorRequest,
+};
 pub use error::{KickError, KickResult};
 pub use introspect::{Introspect, IntrospectionKind, IntrospectionSnapshot};
 pub use module::{define_module, Module, ModuleBuilder, ProviderSpec};

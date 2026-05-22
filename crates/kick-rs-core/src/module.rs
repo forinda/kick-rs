@@ -43,14 +43,27 @@ impl std::fmt::Debug for ProviderSpec {
 
 /// Built module — transport-agnostic. HTTP wiring (routes, handlers) lives
 /// in `kick-rs-http` and wraps this type.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Module {
     /// Stable name used for logging, introspection, and `depends_on`.
     pub name: String,
     /// URL/path prefix applied by HTTP wrappers; semantically opaque here.
     pub prefix: String,
     providers: Vec<ProviderSpec>,
+    contributors: Vec<crate::AnyContributor>,
     sub_modules: Vec<Module>,
+}
+
+impl std::fmt::Debug for Module {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Module")
+            .field("name", &self.name)
+            .field("prefix", &self.prefix)
+            .field("providers", &self.providers)
+            .field("contributors", &self.contributors.len())
+            .field("sub_modules", &self.sub_modules)
+            .finish()
+    }
 }
 
 impl Module {
@@ -92,6 +105,18 @@ impl Module {
     pub fn sub_modules(&self) -> &[Module] {
         &self.sub_modules
     }
+
+    /// Gather every contributor this module (and its sub-modules)
+    /// declares. Returns a flat `Vec` of cloned `Arc`s — the caller
+    /// folds this into a [`ContributorPipeline`](crate::ContributorPipeline)
+    /// during bootstrap.
+    pub fn collect_contributors(&self) -> Vec<crate::AnyContributor> {
+        let mut out: Vec<_> = self.contributors.to_vec();
+        for sub in &self.sub_modules {
+            out.extend(sub.collect_contributors());
+        }
+        out
+    }
 }
 
 // ───────────────────────────────── Builder ─────────────────────────────────
@@ -101,6 +126,7 @@ pub struct ModuleBuilder {
     name: String,
     prefix: String,
     providers: Vec<ProviderSpec>,
+    contributors: Vec<crate::AnyContributor>,
     sub_modules: Vec<Module>,
 }
 
@@ -110,6 +136,7 @@ pub fn define_module(name: impl Into<String>) -> ModuleBuilder {
         name: name.into(),
         prefix: String::new(),
         providers: Vec::new(),
+        contributors: Vec::new(),
         sub_modules: Vec::new(),
     }
 }
@@ -151,6 +178,22 @@ impl ModuleBuilder {
     /// ```
     pub fn service<T: crate::ServiceImpl>(self) -> Self {
         self.service_factory::<T, _>(T::build)
+    }
+
+    /// Register a [`ContextContributor`](crate::ContextContributor) on
+    /// this module. The contributor's typed `Deps` participate in the
+    /// app-wide topo-sort at boot, so missing deps and cycles surface
+    /// before any request runs.
+    ///
+    /// ```ignore
+    /// define_module("tenancy")
+    ///     .contribute(LoadTenant)
+    ///     .contribute(LoadCurrentUser)
+    ///     .build()
+    /// ```
+    pub fn contribute<C: crate::ContextContributor>(mut self, c: C) -> Self {
+        self.contributors.push(crate::erase_contributor(c));
+        self
     }
 
     /// Bind a lazily-constructed singleton.
@@ -204,6 +247,7 @@ impl ModuleBuilder {
             name: self.name,
             prefix: self.prefix,
             providers: self.providers,
+            contributors: self.contributors,
             sub_modules: self.sub_modules,
         }
     }
@@ -343,5 +387,51 @@ mod tests {
         assert_eq!(names.len(), 2);
         assert!(names.iter().any(|n| n.ends_with("::A")));
         assert!(names.iter().any(|n| n.ends_with("::B")));
+    }
+
+    // ── Contributor registration via the module builder ─────────────────────
+
+    use crate::{
+        ContextContributor, ContributorPipeline, ContributorRequest, ContributorRequestExt,
+        ContributorStore, KickResult,
+    };
+
+    #[derive(Debug, PartialEq)]
+    struct Tenant {
+        id: u32,
+    }
+
+    struct LoadTenant;
+    impl ContextContributor for LoadTenant {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, _: ()) -> KickResult<Tenant> {
+            Ok(Tenant { id: 7 })
+        }
+    }
+
+    #[tokio::test]
+    async fn module_contribute_flows_into_pipeline() {
+        let m = define_module("tenancy").contribute(LoadTenant).build();
+
+        let pipeline = ContributorPipeline::build(m.collect_contributors()).unwrap();
+        let mut store = ContributorStore::new();
+        pipeline.run(&mut store).await.unwrap();
+
+        assert_eq!(store.get::<Tenant>(), Some(&Tenant { id: 7 }));
+    }
+
+    #[tokio::test]
+    async fn sub_module_contributors_are_collected_too() {
+        let inner = define_module("inner").contribute(LoadTenant).build();
+        let outer = define_module("outer").sub_module(inner).build();
+
+        let cs = outer.collect_contributors();
+        assert_eq!(cs.len(), 1);
+
+        let p = ContributorPipeline::build(cs).unwrap();
+        let mut store = ContributorStore::new();
+        p.run(&mut store).await.unwrap();
+        assert_eq!(store.get::<Tenant>(), Some(&Tenant { id: 7 }));
     }
 }

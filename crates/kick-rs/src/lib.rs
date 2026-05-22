@@ -21,16 +21,17 @@
 // ── Core (transport-agnostic types) ────────────────────────────────────
 pub use kick_rs_core::{
     define_adapter, define_plugin, Adapter, AdapterContext, AdapterDef, AdapterFactory,
-    BuildContext, Container, ContainerBuilder, ContextContributor, Introspect, IntrospectionKind,
-    IntrospectionSnapshot, KickError, KickResult, Module as CoreModule,
+    BuildContext, Container, ContainerBuilder, ContextContributor, ContributorDeps,
+    ContributorPipeline, ContributorRequest, ContributorRequestExt, ContributorStore, Introspect,
+    IntrospectionKind, IntrospectionSnapshot, KickError, KickResult, Module as CoreModule,
     ModuleBuilder as CoreModuleBuilder, Plugin, PluginDef, PluginFactory, ProviderSpec, Scope,
     ServiceImpl, Token,
 };
 
 // ── HTTP (the default user-facing surface) ─────────────────────────────
 pub use kick_rs_http::{
-    bootstrap, define_module, AppState, Bootstrap, Ctx, HttpError, HttpModule, HttpModuleBuilder,
-    HttpResult, Inject, RequestContext,
+    bootstrap, contributors_middleware, define_module, AppState, Bootstrap, Ctx, HttpError,
+    HttpModule, HttpModuleBuilder, HttpResult, Inject,
 };
 
 // `Module` and `ModuleBuilder` in the umbrella refer to the HTTP variants

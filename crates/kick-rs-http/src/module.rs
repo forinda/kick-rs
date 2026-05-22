@@ -46,6 +46,17 @@ impl HttpModule {
         builder
     }
 
+    /// Gather every [`ContextContributor`](kick_rs_core::ContextContributor)
+    /// this module (and sub-modules) registered. Used by `bootstrap()`
+    /// to build the per-app contributor pipeline.
+    pub fn collect_contributors(&self) -> Vec<kick_rs_core::AnyContributor> {
+        let mut out = self.core.collect_contributors();
+        for sub in &self.sub_modules {
+            out.extend(sub.collect_contributors());
+        }
+        out
+    }
+
     /// Consume `self`, mounting every route onto `router`. Sub-modules'
     /// routes are mounted recursively.
     pub fn mount_onto(self, mut router: Router) -> Router {
@@ -121,6 +132,15 @@ impl HttpModuleBuilder {
     /// Forwarded straight to [`ModuleBuilder::service`](kick_rs_core::ModuleBuilder::service).
     pub fn service<T: kick_rs_core::ServiceImpl>(mut self) -> Self {
         self.core = self.core.service::<T>();
+        self
+    }
+
+    /// Register a [`ContextContributor`](kick_rs_core::ContextContributor).
+    /// Forwarded straight to [`ModuleBuilder::contribute`](kick_rs_core::ModuleBuilder::contribute).
+    /// The contributor participates in the app-wide pipeline topo-sort
+    /// at boot.
+    pub fn contribute<C: kick_rs_core::ContextContributor>(mut self, c: C) -> Self {
+        self.core = self.core.contribute(c);
         self
     }
 

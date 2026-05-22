@@ -39,6 +39,11 @@ pub struct Bootstrap {
     modules: Vec<HttpModule>,
     adapters: Vec<Arc<dyn Adapter>>,
     plugins: Vec<Arc<dyn Plugin>>,
+    /// Contributors registered globally on the bootstrap builder, used
+    /// for cross-cutting per-request values (e.g. `CurrentUser` derived
+    /// from auth headers). Combined with module- and plugin-level
+    /// contributors into a single topo-sorted pipeline at boot.
+    global_contributors: Vec<kick_rs_core::AnyContributor>,
     shutdown_timeout: Option<Duration>,
 }
 
@@ -67,6 +72,20 @@ impl Bootstrap {
         self
     }
 
+    /// Register a [`ContextContributor`](kick_rs_core::ContextContributor)
+    /// globally — runs on every request regardless of which module owns
+    /// the handler. Typical use: auth-derived `CurrentUser`, request-id
+    /// extension, multi-tenant routing.
+    ///
+    /// Module- and plugin-level contributors run alongside these in
+    /// the same topo-sorted pipeline; missing or cyclic deps surface
+    /// at boot with `RK_E_MISSING_CONTRIBUTOR` / `RK_E_CONTRIBUTOR_CYCLE`.
+    pub fn contribute<C: kick_rs_core::ContextContributor>(mut self, c: C) -> Self {
+        self.global_contributors
+            .push(kick_rs_core::erase_contributor(c));
+        self
+    }
+
     /// Override the per-adapter shutdown timeout (default: 10s).
     pub fn shutdown_timeout(mut self, d: Duration) -> Self {
         self.shutdown_timeout = Some(d);
@@ -81,6 +100,7 @@ impl Bootstrap {
             modules,
             adapters,
             plugins,
+            global_contributors,
             shutdown_timeout: _,
         } = self;
 
@@ -96,12 +116,37 @@ impl Bootstrap {
         let sorted = topo_sort(mount_items)?;
         let adapters: Vec<Arc<dyn Adapter>> = sorted.into_iter().map(|m| m.inner).collect();
 
-        // 3. Build the router.
+        // 3. Gather contributors from every source — modules, plugins
+        //    (each plugin returns a `Vec<AnyContributor>` from
+        //    `Plugin::contributors()`), and bootstrap-global. Topo-sort
+        //    once into a single pipeline. Missing/cyclic deps fail boot.
+        let mut contributors = global_contributors;
+        for m in &modules {
+            contributors.extend(m.collect_contributors());
+        }
+        for p in &plugins {
+            contributors.extend(p.contributors());
+        }
+        let pipeline = Arc::new(crate::ContributorPipeline::build(contributors)?);
+
+        // 4. Build the router.
         let mut router = axum::Router::new();
         for m in modules {
             router = m.mount_onto(router);
         }
         router = router.layer(Extension(container.clone()));
+
+        // 5. Install the contributor middleware *after* the Extension
+        //    layer so the pipeline can read from the container if it
+        //    ever needs to (today: never, but layers apply
+        //    outermost-first in axum).
+        if !pipeline.is_empty() {
+            let pipeline_for_layer = Arc::clone(&pipeline);
+            router = router.layer(axum::middleware::from_fn(move |req, next| {
+                let p = Arc::clone(&pipeline_for_layer);
+                async move { crate::contributors_middleware(p, req, next).await }
+            }));
+        }
 
         Ok((
             router,
@@ -390,5 +435,76 @@ mod tests {
 
         let err = bootstrap().adapter(a).adapter(b).into_router().unwrap_err();
         assert_eq!(err.code, "RK_E_MOUNT_CYCLE");
+    }
+
+    // ── End-to-end: module-registered contributor reachable via Ctx<T> ──────
+
+    use crate::Ctx;
+    use kick_rs_core::ContributorRequest;
+
+    #[derive(Debug, Clone)]
+    struct Tenant {
+        slug: String,
+    }
+
+    struct LoadTenantFromHeader;
+    impl kick_rs_core::ContextContributor for LoadTenantFromHeader {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(
+            &'a self,
+            _ctx: &'a dyn ContributorRequest,
+            _: (),
+        ) -> KickResult<Tenant> {
+            // A real impl would read from ctx (request headers via a
+            // contributor that exposes them). For this end-to-end test
+            // we just emit a fixed value.
+            Ok(Tenant {
+                slug: "acme".into(),
+            })
+        }
+    }
+
+    async fn tenant_handler(tenant: Ctx<Tenant>) -> String {
+        tenant.slug.clone()
+    }
+
+    #[tokio::test]
+    async fn contributor_pipeline_runs_per_request_and_ctx_extracts() {
+        let m = define_module("tenancy")
+            .contribute(LoadTenantFromHeader)
+            .get("/tenant", tenant_handler)
+            .build();
+
+        let (router, _state) = bootstrap().module(m).into_router().unwrap();
+
+        let res = router
+            .oneshot(Request::get("/tenant").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), 64).await.unwrap();
+        assert_eq!(&body[..], b"acme");
+    }
+
+    #[tokio::test]
+    async fn contributor_missing_producer_fails_bootstrap() {
+        struct WantsTenant;
+        impl kick_rs_core::ContextContributor for WantsTenant {
+            type Key = String;
+            type Deps = (Tenant,);
+            async fn resolve<'a>(
+                &'a self,
+                _ctx: &'a dyn ContributorRequest,
+                (t,): (&'a Tenant,),
+            ) -> KickResult<String> {
+                Ok(t.slug.clone())
+            }
+        }
+
+        // Register the consumer but NOT the producer.
+        let m = define_module("broken").contribute(WantsTenant).build();
+        let err = bootstrap().module(m).into_router().unwrap_err();
+        assert_eq!(err.code, "RK_E_MISSING_CONTRIBUTOR");
     }
 }

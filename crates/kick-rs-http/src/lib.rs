@@ -4,6 +4,8 @@
 //!
 //! - [`bootstrap`] — the app entry-point builder
 //! - [`Inject<T>`] — axum extractor backed by [`kick_rs_core::Container`]
+//! - [`Ctx<T>`] — axum extractor for values produced by
+//!   [`ContextContributor`s](kick_rs_core::ContextContributor)
 //! - [`define_module`] / [`HttpModule`] — HTTP-aware module wrapper around
 //!   [`kick_rs_core::Module`] (adds routes + axum integration)
 //! - [`HttpError`] / [`HttpResult`] — RFC 7807 problem-details response
@@ -16,14 +18,14 @@
 #![warn(missing_docs, rust_2018_idioms)]
 
 pub mod bootstrap;
-pub mod context;
+pub mod contributors;
 pub mod error;
 pub mod inject;
 pub mod module;
 pub mod plugins;
 
 pub use bootstrap::{bootstrap, AppState, Bootstrap};
-pub use context::{Ctx, RequestContext};
+pub use contributors::{contributors_middleware, Ctx};
 pub use error::{HttpError, HttpResult};
 pub use inject::Inject;
 pub use module::{define_module, HttpModule, HttpModuleBuilder};
@@ -32,5 +34,7 @@ pub use module::{define_module, HttpModule, HttpModuleBuilder};
 // `use kick_rs_http::*;` without also pulling in `kick_rs_core`.
 pub use kick_rs_core::{
     Adapter, AdapterContext, AdapterDef, AdapterFactory, BuildContext, Container, ContainerBuilder,
-    KickError, KickResult, Module, ModuleBuilder, Plugin, PluginDef, PluginFactory,
+    ContextContributor, ContributorPipeline, ContributorRequest, ContributorRequestExt,
+    ContributorStore, KickError, KickResult, Module, ModuleBuilder, Plugin, PluginDef,
+    PluginFactory,
 };
