@@ -1,7 +1,7 @@
 [package]
 name        = "kick-rs-macros"
 version     = "0.0.2"
-description = "Opt-in proc-macro sugar for kick-rs (#[service])"
+description = "Opt-in proc-macro sugar for kick-rs (#[service], #[contributor], #[get]/#[post]/...)"
 readme      = "README.md"
 edition.workspace      = true
 rust-version.workspace = true
@@ -22,7 +22,11 @@ proc-macro2       = { workspace = true }
 proc-macro-crate  = "3"
 
 [dev-dependencies]
-# Integration tests need both the macro (this crate) and the trait it
-# targets (kick-rs-core).
+# Integration tests need the macro (this crate) and the traits it
+# targets. The route-macro tests additionally exercise the HTTP
+# plumbing end-to-end.
 kick-rs-core = { workspace = true }
+kick-rs-http = { workspace = true }
 tokio        = { workspace = true }
+axum         = { workspace = true }
+tower        = { workspace = true, features = ["util"] }
