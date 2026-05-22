@@ -30,9 +30,9 @@ pub use kick_rs_core::{
 
 // ── HTTP (the default user-facing surface) ─────────────────────────────
 pub use kick_rs_http::{
-    bootstrap, contributors_middleware, define_module, AppState, Bootstrap, Ctx, HttpError,
-    HttpModule, HttpModuleBuilder, HttpPlugin, HttpResult, Inject, MiddlewareEntry,
-    MiddlewarePhase,
+    bootstrap, contributors_middleware, define_module, define_modules, AppState, Bootstrap, Ctx,
+    HttpError, HttpModule, HttpModuleBuilder, HttpPlugin, HttpResult, Inject, MiddlewareEntry,
+    MiddlewarePhase, ModuleList, ModuleRegistry,
 };
 
 // `Module` and `ModuleBuilder` in the umbrella refer to the HTTP variants

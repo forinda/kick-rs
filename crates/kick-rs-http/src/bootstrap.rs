@@ -113,6 +113,32 @@ impl Bootstrap {
         self
     }
 
+    /// Conditional / dynamic module mount. Run a closure with mutable
+    /// access to a [`ModuleRegistry`](crate::ModuleRegistry) over the
+    /// modules registered so far; useful for env-driven feature flags
+    /// without breaking the fluent chain.
+    ///
+    /// ```ignore
+    /// bootstrap()
+    ///     .module(users_module())
+    ///     .setup(|reg| {
+    ///         reg.mount_if(env.feature_billing, billing_module());
+    ///         if env.admin_portal { reg.mount(admin_module()); }
+    ///     })
+    ///     .listen("0.0.0.0:3000")
+    ///     .await
+    /// ```
+    pub fn setup<F>(mut self, f: F) -> Self
+    where
+        F: FnOnce(&mut crate::ModuleRegistry<'_>),
+    {
+        let mut reg = crate::ModuleRegistry {
+            modules: &mut self.modules,
+        };
+        f(&mut reg);
+        self
+    }
+
     /// Build the application as an [`axum::Router`] without binding any
     /// socket. Useful for tower-style testing via `ServiceExt::oneshot`.
     /// Errors are surfaced from container or topo-sort validation.
@@ -842,6 +868,67 @@ mod tests {
                 MiddlewareEntry::from_async_fn(MiddlewarePhase::AfterRoutes, log_middleware("AR")),
             ]
         }
+    }
+
+    // ── ModuleList + Bootstrap::setup (conditional mount) ───────────────────
+
+    async fn billing_handler() -> &'static str {
+        "billing"
+    }
+
+    async fn admin_handler() -> &'static str {
+        "admin"
+    }
+
+    fn billing_module() -> HttpModule {
+        define_module("billing")
+            .get("/billing", billing_handler)
+            .build()
+    }
+
+    fn admin_module() -> HttpModule {
+        define_module("admin").get("/admin", admin_handler).build()
+    }
+
+    #[tokio::test]
+    async fn setup_callback_mounts_conditionally_when_true() {
+        let (router, _) = bootstrap()
+            .setup(|reg| {
+                reg.mount_if(true, billing_module());
+                reg.mount_if(false, admin_module());
+            })
+            .into_router()
+            .unwrap();
+
+        let billing = router
+            .clone()
+            .oneshot(Request::get("/billing").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(billing.status(), StatusCode::OK);
+
+        let admin = router
+            .oneshot(Request::get("/admin").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(admin.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn module_list_setup_works_outside_bootstrap() {
+        let list = crate::define_modules()
+            .mount(billing_module())
+            .setup(|reg| reg.mount_if(true, admin_module()));
+
+        assert_eq!(list.len(), 2);
+
+        let (router, _) = bootstrap().modules(list).into_router().unwrap();
+
+        let res = router
+            .oneshot(Request::get("/admin").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
     }
 
     #[tokio::test]
