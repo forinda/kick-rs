@@ -68,6 +68,13 @@ pub use kick_rs_http as __http;
 #[cfg(feature = "openapi")]
 pub use kick_rs_http::openapi;
 
+// ── Opt-in DevTools introspection (feature = "devtools") ───────────────
+//
+// Exposes the `devtools` module so adopters can name the snapshot
+// types in their own code (e.g. to consume the JSON in tests).
+#[cfg(feature = "devtools")]
+pub use kick_rs_http::devtools;
+
 // ── Opt-in config loader (feature = "config") ──────────────────────────
 //
 // Layered env / dotenv / TOML / JSON loader. Exposes the entire

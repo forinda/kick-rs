@@ -48,12 +48,32 @@ pub struct Bootstrap {
     /// contributors into a single topo-sorted pipeline at boot.
     global_contributors: Vec<kick_rs_core::AnyContributor>,
     shutdown_timeout: Option<Duration>,
+    /// When `Some(path)`, [`Self::into_router`] mounts a JSON
+    /// introspection endpoint at `path`. Off by default; gated on the
+    /// `devtools` cargo feature.
+    #[cfg(feature = "devtools")]
+    devtools_path: Option<String>,
 }
 
 impl Bootstrap {
     /// Mount a module.
     pub fn module(mut self, m: HttpModule) -> Self {
         self.modules.push(m);
+        self
+    }
+
+    /// Mount the DevTools `/__debug` introspection endpoint at the
+    /// default path. Requires the `devtools` cargo feature.
+    #[cfg(feature = "devtools")]
+    pub fn with_devtools(self) -> Self {
+        self.with_devtools_at(crate::devtools::DEFAULT_PATH)
+    }
+
+    /// Mount the DevTools `/__debug` introspection endpoint at a
+    /// custom path. Requires the `devtools` cargo feature.
+    #[cfg(feature = "devtools")]
+    pub fn with_devtools_at(mut self, path: impl Into<String>) -> Self {
+        self.devtools_path = Some(path.into());
         self
     }
 
@@ -150,6 +170,8 @@ impl Bootstrap {
             http_plugins,
             global_contributors,
             shutdown_timeout: _,
+            #[cfg(feature = "devtools")]
+            devtools_path,
         } = self;
 
         // 1. Aggregate every input from every source. Plugins
@@ -221,6 +243,21 @@ impl Bootstrap {
             std::any::TypeId::of::<axum::http::Method>(),
             std::any::TypeId::of::<axum::http::Uri>(),
         ];
+        // Snapshot the assembled state for DevTools *before* the
+        // pipeline consumes `contributors` and the mount loop consumes
+        // `modules`. Stored as an Arc<DebugSnapshot> that the route
+        // handler serves from a pre-rendered JSON body.
+        #[cfg(feature = "devtools")]
+        let devtools_snapshot = devtools_path.as_ref().map(|_| {
+            Arc::new(crate::devtools::build_snapshot(
+                &modules,
+                &plugins,
+                &http_plugins,
+                &adapters,
+                &contributors,
+            ))
+        });
+
         let pipeline = Arc::new(crate::ContributorPipeline::build_with_ambient(
             contributors,
             &ambient,
@@ -230,6 +267,14 @@ impl Bootstrap {
         let mut router = axum::Router::new();
         for m in modules {
             router = m.mount_onto(router);
+        }
+
+        // 5a-pre. Mount the DevTools route before middleware so the
+        // standard layer stack wraps it like any other route (CORS,
+        // request-id, etc all apply).
+        #[cfg(feature = "devtools")]
+        if let (Some(path), Some(snap)) = (devtools_path.as_deref(), devtools_snapshot) {
+            router = router.merge(crate::devtools::snapshot_router(path, snap));
         }
 
         // 5a. Phase-keyword middleware from http_plugins. Aggregate

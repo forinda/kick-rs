@@ -124,6 +124,39 @@ to `api::v1::__path_list` and `__path_get_one` respectively.
 
 [`utoipa`]: https://docs.rs/utoipa
 
+## DevTools `/__debug` endpoint (opt-in)
+
+Off by default — turn it on with the `devtools` cargo feature **and**
+a `.with_devtools()` call on the bootstrap (two opt-ins on purpose,
+to make it hard to accidentally ship in production):
+
+```toml
+kick-rs-http = { version = "0.1.0-alpha.1", features = ["devtools"] }
+```
+
+```rust,ignore
+bootstrap()
+    .module(users::define())
+    .with_devtools()             // or .with_devtools_at("/internal/state")
+    .listen(addr).await
+```
+
+`GET /__debug` then returns a JSON snapshot of the assembled app:
+
+```json
+{
+  "framework": "kick-rs",
+  "version":   "0.1.0-alpha.1",
+  "modules":   [{ "name": "users", "prefix": "/users", "routes": 5, "sub_modules": [] }],
+  "plugins":   [{ "name": "request-id" }, { "name": "openapi" }],
+  "adapters":  [],
+  "contributors": { "count": 2 }
+}
+```
+
+The snapshot is serialized once at boot, so per-request cost is just
+a refcount bump and a string clone.
+
 ## Quick example
 
 ```rust
