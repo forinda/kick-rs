@@ -26,7 +26,9 @@ proc-macro-crate  = "3"
 # targets. The route-macro tests additionally exercise the HTTP
 # plumbing end-to-end.
 kick-rs-core = { workspace = true }
-kick-rs-http = { workspace = true }
+kick-rs-http = { workspace = true, features = ["openapi"] }
 tokio        = { workspace = true }
 axum         = { workspace = true }
 tower        = { workspace = true, features = ["util"] }
+serde_json   = { workspace = true }
+utoipa       = "5"

@@ -104,6 +104,24 @@ bootstrap().http_plugin(plugin).module(users).listen(addr).await
 Sub-modules are walked recursively, so a top-level module nesting
 half the app is enough.
 
+### Bulk registration via `paths!`
+
+With the `macros` feature on, drop the per-handler turbofish by
+listing handlers up front:
+
+```rust,ignore
+use kick_rs::paths;
+
+let users = define_module("users")
+    .get("/users/:id", get_user)
+    .post("/users",    create_user)
+    .openapi_paths(paths!(get_user, create_user))
+    .build();
+```
+
+Qualified paths work too — `paths!(api::v1::list, get_one)` resolves
+to `api::v1::__path_list` and `__path_get_one` respectively.
+
 [`utoipa`]: https://docs.rs/utoipa
 
 ## Quick example
