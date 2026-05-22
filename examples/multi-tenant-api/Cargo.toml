@@ -6,7 +6,7 @@ edition     = "2021"
 publish     = false
 
 [dependencies]
-kick-rs = { path = "../../crates/kick-rs", features = ["macros"] }
+kick-rs = { path = "../../crates/kick-rs", features = ["macros", "config"] }
 
 tokio              = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync"] }
 axum               = "0.7"

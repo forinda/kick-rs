@@ -1,40 +1,51 @@
-//! Env-driven config — same shape as the users-api example, plus a
-//! `TENANTS` allowlist.
+//! Process configuration loaded via [`kick_rs::config::Config`].
+//!
+//! Same shape as the users-api example, plus a `tenants` allowlist —
+//! sourced as a comma-separated env value and split during
+//! deserialization.
 
+use kick_rs::config::Config;
 use kick_rs::{KickError, KickResult};
+use serde::{Deserialize, Deserializer};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Env {
     pub database_url: String,
     pub bind_addr: String,
+    /// Allowlist of tenant slugs. Env value is comma-separated; we
+    /// split + trim during deserialization. Empty after split-and-trim
+    /// is treated as a configuration error post-load.
+    #[serde(deserialize_with = "csv_to_vec")]
     pub tenants: Vec<String>,
 }
 
 impl Env {
     pub fn load() -> KickResult<Self> {
-        let tenants = required("TENANTS")?
-            .split(',')
-            .map(|s| s.trim().to_owned())
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>();
-        if tenants.is_empty() {
+        let cfg: Self = Config::builder()
+            .with_defaults(serde_json::json!({
+                "bind_addr": "0.0.0.0:3001",
+            }))
+            .with_dotenv_optional(".env")
+            .with_env_prefix("MT_")
+            .extract()?;
+
+        if cfg.tenants.is_empty() {
             return Err(KickError::new(
                 "RK_A_CONFIG",
-                "TENANTS env must list at least one tenant slug",
+                "MT_TENANTS must list at least one tenant slug",
             ));
         }
-        Ok(Self {
-            database_url: required("DATABASE_URL")?,
-            bind_addr: std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:3001".to_owned()),
-            tenants,
-        })
+        Ok(cfg)
     }
 }
 
-fn required(key: &'static str) -> KickResult<String> {
-    std::env::var(key).map_err(|_| {
-        KickError::new("RK_C_MISSING_ENV", format!("required env var `{key}` is not set"))
-            .with_hint(format!("export {key}=... or copy .env.example to .env"))
-            .with_context("key", key)
-    })
+fn csv_to_vec<'de, D>(d: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(d)?;
+    Ok(s.split(',')
+        .map(|p| p.trim().to_owned())
+        .filter(|p| !p.is_empty())
+        .collect())
 }
