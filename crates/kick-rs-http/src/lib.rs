@@ -24,6 +24,7 @@ pub mod http_plugin;
 pub mod inject;
 pub mod middleware;
 pub mod module;
+pub mod module_list;
 pub mod plugins;
 
 pub use bootstrap::{bootstrap, AppState, Bootstrap};
@@ -33,6 +34,7 @@ pub use http_plugin::HttpPlugin;
 pub use inject::Inject;
 pub use middleware::{MiddlewareEntry, MiddlewarePhase};
 pub use module::{define_module, HttpModule, HttpModuleBuilder};
+pub use module_list::{define_modules, ModuleList, ModuleRegistry};
 
 // Re-export the public surface of kick_rs_core so app code can write
 // `use kick_rs_http::*;` without also pulling in `kick_rs_core`.
