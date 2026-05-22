@@ -1,18 +1,36 @@
-//! Built-in HTTP plugins — see [`SPEC.md` §5.7](../SPEC.md#57-built-in-plugins-shipped-with-kick-rs).
+//! Built-in `HttpPlugin`s shipped with `kick-rs-http`.
 //!
-//! Each lives behind a small module so end-users can pick what they want.
-//! Concrete implementations land in Phase 5.
+//! Each plugin is feature-gated so adopters can opt out:
+//!
+//! ```toml
+//! # take everything (default)
+//! kick-rs-http = "0.1.0-alpha.1"
+//!
+//! # opt out of one
+//! kick-rs-http = { version = "0.1.0-alpha.1", default-features = false,
+//!                 features = ["plugin-request-id", "plugin-cors"] }
+//! ```
+//!
+//! Recommended composition (request-flow order):
+//!
+//! ```ignore
+//! bootstrap()
+//!     .http_plugin(plugins::cors::CorsPlugin::permissive())
+//!     .http_plugin(plugins::request_id::RequestIdPlugin::default())
+//!     .http_plugin(plugins::request_logger::RequestLoggerPlugin::default())
+//!     .http_plugin(plugins::compression::CompressionPlugin::default())
+//!     .module(users_module())
+//!     .listen(addr).await
+//! ```
 
-/// `X-Request-Id` propagation + binding of `RequestId` singleton.
-pub mod request_id {
-    /// Placeholder for the request-id plugin.
-    pub fn request_id() {
-        // todo: wire up real tower layer
-    }
-}
+#[cfg(feature = "plugin-cors")]
+pub mod cors;
 
-/// Pino-style structured request logging via `tracing`.
-pub mod request_logger {
-    /// Placeholder for the request-logger plugin.
-    pub fn request_logger() {}
-}
+#[cfg(feature = "plugin-compression")]
+pub mod compression;
+
+#[cfg(feature = "plugin-request-id")]
+pub mod request_id;
+
+#[cfg(feature = "plugin-request-logger")]
+pub mod request_logger;
