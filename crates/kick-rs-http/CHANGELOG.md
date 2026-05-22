@@ -10,6 +10,16 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.0.2...kick-rs-http-v0.0.3) - 2026-05-22
+
+### Added
+
+- *(http)* ModuleList + ModuleRegistry + Bootstrap::setup for conditional mount
+- *(http)* phase-keyword middleware via HttpPlugin::middleware()
+- *(examples,http)* multi-tenant example + framework request access
+- container access from contributors + #[contributor] proc-macro
+- *(plugins)* plugins ship modules+adapters+lifecycle; HttpPlugin ships routes
+
 ## [0.0.2](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.0.1...kick-rs-http-v0.0.2) - 2026-05-22
 
 ### Added
