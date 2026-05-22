@@ -5,7 +5,7 @@
 > on [axum](https://github.com/tokio-rs/axum) + [tokio](https://tokio.rs).
 > DB-agnostic. Compile-time DI. Typed context contributors.
 
-[![status](https://img.shields.io/badge/status-phase--1--complete-green)](#status)
+[![status](https://img.shields.io/badge/status-0.1.0--alpha.1-orange)](#status)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![rust](https://img.shields.io/badge/rust-1.78%2B-orange)](rust-toolchain.toml)
 
@@ -13,38 +13,55 @@
 
 ## Status
 
-**Phase 1 done. The framework works end-to-end for the surface that's landed.**
+**`0.1.0-alpha.1` — framework-level structural parity with KickJS.**
+API surface is functionally complete; the alpha lane is open for early
+adopters while the implementation hardens against real usage.
 
-What works right now:
+What's in:
 
-- **Typed DI container** — three scopes (singleton, transient, request-stub),
+- **Typed DI container** — three scopes (singleton / transient / request),
   build-time duplicate detection, fast read-lock resolution
-- **Module composition** — providers fold across modules and sub-modules into
-  one container; cross-module conflicts caught at build
-- **Adapter & Plugin factories** — `define_adapter()` / `define_plugin()` with
-  `.call()` / `.with(cfg)` / `.scoped(name, cfg)` variants
-- **Cooperative shutdown** — `tokio::join_all` across adapters with per-adapter
-  timeout budget
-- **`bootstrap().listen(addr)`** — real axum server with the full lifecycle:
-  topo-sort adapters → `before_mount` → `before_start` → bind → `after_start` →
-  serve with Ctrl-C graceful shutdown → `shutdown()`
-- **`Inject<T>` extractor** — axum-native DI access in handlers, with structured
-  errors (`RK_E_UNKNOWN_TOKEN`) returned as RFC 7807 problem-details JSON
-- **`define_module(...)`** with `.get`/`.post`/`.put`/`.patch`/`.delete`, prefix
-  application, and sub-module nesting
+- **Modules** — `define_module()` composes routes + services + sub-modules.
+  `Bootstrap::setup(|reg| ...)` for conditional / env-driven mounting
+- **Adapters** — full lifecycle (`before_mount` / `before_start` /
+  `after_start` / `shutdown`), `define_adapter()` factory with
+  `.call/.with/.scoped`, can declare contributors
+- **Plugins** — full mini-framework-in-a-package: ship modules,
+  adapters, contributors, lifecycle hooks, **phase-keyword middleware**
+  (`BeforeGlobal` / `AfterGlobal` / `BeforeRoutes` / `AfterRoutes`).
+  HTTP-aware variant `HttpPlugin` adds route mounting
+- **Context Contributors** — typed `Deps` tuples, topo-sorted at boot,
+  five registration sites (module / adapter / plugin / bootstrap-
+  global / framework-ambient). Container access from inside `resolve`
+  via `ctx.inject::<T>()`. `OnErrorAction::{Propagate, Skip, Recover}`
+  for graceful failure handling. Framework injects request `HeaderMap`
+  / `Method` / `Uri` as ambient deps
+- **`bootstrap().listen(addr)`** — full axum lifecycle with Ctrl-C
+  graceful shutdown, cooperative adapter+plugin shutdown via
+  `futures::join_all` + per-item timeout
+- **`Inject<T>` + `Ctx<T>` extractors** — DI from the container, and
+  request-scoped contributor outputs respectively. Errors → RFC 7807
+  problem-details JSON
+- **Opt-in macros** — `#[service]`, `#[contributor]`,
+  `#[get("/")]` / `#[post]` / `#[put]` / `#[patch]` / `#[delete]`
 
 Build state:
 
 - `cargo build --workspace` — clean
-- `cargo test --workspace` — **45/45 passing**
-- `cargo clippy --workspace --lib --tests -- -D warnings` — clean
+- `cargo test --workspace` — **81/81 passing**
+- `cargo clippy --workspace --all-targets --locked -- -D warnings` — clean
+- Two reference examples build: `users-api` (single-tenant CRUD) +
+  `multi-tenant-api` (schema-per-tenant with per-tenant pool factory)
 
-What does **not** yet exist:
+What's still on the roadmap:
 
-- `cargo kick-rs` CLI — placeholder binary (Phase 5)
-- `#[service]` / `#[handler]` / `#[get]` proc-macros — Phase 3
-- Context contributors with typed `Deps` — Phase 4
-- DB adapter (sqlx/diesel/sea-orm) — explicitly out of scope; lives in
+- `cargo kick` CLI + `kick g` codegen — tooling, not framework (DevX)
+- OpenAPI integration via `utoipa`
+- `kick-rs-config` env loader (currently a scaffold placeholder)
+- `kick-rs-assets` typed asset manifest (currently a scaffold)
+- Built-in plugins shipped out-of-box (`request_id`, `request_logger`, …)
+- DevTools `/__debug` endpoint
+- DB adapter (sqlx / diesel / sea-orm) — explicitly out of scope; lives in
   user code. See [`examples/users-api`](./examples/users-api) for the
   pattern adopters follow.
 
@@ -183,15 +200,21 @@ async fn main() -> KickResult<()> {
 The full phase plan lives in [SPEC.md §11](./SPEC.md#11-implementation-phases).
 Top-level summary:
 
-| Phase | Goal                                                            | Status   |
-|-------|-----------------------------------------------------------------|----------|
-| 0     | Spec + architecture documents, workspace scaffold               | **Done** |
-| 1     | `kick-rs-core` Container/Module/Adapter + `kick-rs-http` axum | **Done** |
-| 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter   | **Done** |
-| 3     | `kick-rs-macros`: `#[service]` / `#[handler]` / `#[get]` sugar | Pending  |
-| 4     | Context contributors with typed tuple `Deps`                    | Pending  |
-| 5     | Adapter shutdown polish, OpenAPI, auth, CLI                     | Pending  |
-| 6     | Ecosystem crates (ws, queue, otel, devtools)                    | Future   |
+| Phase | Goal                                                             | Status   |
+|-------|------------------------------------------------------------------|----------|
+| 0     | Spec + architecture documents, workspace scaffold                | **Done** |
+| 1     | `kick-rs-core` Container/Module/Adapter + `kick-rs-http` axum    | **Done** |
+| 2     | `examples/users-api`: CRUD with sqlx Postgres                    | **Done** |
+| 3     | `kick-rs-macros`: `#[service]` proc-macro + `ServiceImpl`        | **Done** |
+| 4     | Context Contributors with typed `Deps` + `Ctx<T>` extractor      | **Done** |
+| 5.1   | Plugin / HttpPlugin expansion (modules, adapters, lifecycle)     | **Done** |
+| 5.2   | Contributor ergonomics: `ctx.inject` + `#[contributor]` macro    | **Done** |
+| 5.3   | `examples/multi-tenant-api` + request `HeaderMap` ambient        | **Done** |
+| 5.4   | Phase-keyword middleware via `HttpPlugin::middleware()`          | **Done** |
+| 5.5   | Conditional module mount: `Bootstrap::setup` + `ModuleList`      | **Done** |
+| 5.6   | Contributor `OnErrorAction` (Propagate / Skip / Recover)         | **Done** |
+| 6     | Route attribute macros: `#[get]` / `#[post]` / `#[put]` / `#[patch]` / `#[delete]` | **Done** |
+| 7+    | Tooling: `cargo kick` CLI, OpenAPI, `kick-rs-config`, devtools   | Future   |
 
 DB-related crates (`kick-rs-pg`, `kick-rs-diesel`, …) are **not** on the
 roadmap. DB code lives in user code or examples; the framework stays lean.
@@ -229,15 +252,20 @@ first-class in `cargo`. Pick whichever matches what's published today.
 
 ```toml
 [dependencies]
-kick-rs = "0.0"
+kick-rs = "0.1.0-alpha.1"
 ```
 
-`kick-rs-core` and `kick-rs-http` are also available as standalone
-crates if you only need one.
+`kick-rs-core`, `kick-rs-http`, and `kick-rs-macros` are also
+available as standalone crates if you only need one. The umbrella
+re-exports their surfaces and is what most apps want.
 
-The `kick-rs-macros`, `kick-rs-config`, and `kick-rs-assets` crates
-are not yet on crates.io — they'll appear as optional features on the
-umbrella once their implementations land (Phase 3 / Phase 5).
+The `kick-rs-config` and `kick-rs-assets` crates are still scaffold
+placeholders — they'll appear as optional features on the umbrella
+once their implementations land.
+
+> Cargo doesn't auto-select pre-release versions from a range like
+> `kick-rs = "0.1"` — you must opt in by spelling out the full
+> `0.1.0-alpha.1` until a stable `0.1.0` ships.
 
 ### 2. From this git repo (latest unreleased work)
 

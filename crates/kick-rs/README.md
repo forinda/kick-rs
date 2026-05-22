@@ -17,7 +17,7 @@ This is the **umbrella crate** — depend on `kick-rs` and you get
 
 ```toml
 [dependencies]
-kick-rs = "0.0"
+kick-rs = "0.1.0-alpha.1"
 ```
 
 ## Hello world
