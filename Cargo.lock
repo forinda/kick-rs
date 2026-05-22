@@ -407,11 +407,8 @@ dependencies = [
 name = "rustkick"
 version = "0.0.0"
 dependencies = [
- "rustkick-assets",
- "rustkick-config",
  "rustkick-core",
  "rustkick-http",
- "rustkick-macros",
 ]
 
 [[package]]
