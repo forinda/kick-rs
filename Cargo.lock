@@ -616,7 +616,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.1.0-alpha.2"
+version = "0.1.0-alpha.3"
 dependencies = [
  "kick-rs-config",
  "kick-rs-core",
@@ -635,7 +635,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-cli"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "clap",
  "tempfile",
@@ -643,7 +643,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-config"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 dependencies = [
  "kick-rs-core",
  "serde",
