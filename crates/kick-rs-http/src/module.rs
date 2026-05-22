@@ -21,7 +21,7 @@ type RouteRegistrar = Box<dyn FnOnce(Router) -> Router + Send>;
 /// `Paths` map. Monomorphized over the handler's `__path_<name>` type
 /// at registration time so no per-call allocation or virtual dispatch.
 #[cfg(feature = "openapi")]
-pub(crate) type OpenApiPathRecorder = fn(&mut utoipa::openapi::path::Paths);
+pub type OpenApiPathRecorder = fn(&mut utoipa::openapi::path::Paths);
 
 /// HTTP module — core providers + zero or more routes + sub-modules.
 ///
@@ -318,12 +318,29 @@ impl HttpModuleBuilder {
     /// parallel `#[derive(OpenApi)]` enumeration needed.
     #[cfg(feature = "openapi")]
     pub fn openapi_path<T: utoipa::Path + 'static>(mut self) -> Self {
-        // Monomorphized over T so each push is a normal fn pointer
-        // with no captures.
-        fn record<T: utoipa::Path>(paths: &mut utoipa::openapi::path::Paths) {
-            paths.add_path_operation(T::path(), T::methods(), T::operation());
-        }
-        self.openapi_paths.push(record::<T>);
+        self.openapi_paths
+            .push(crate::openapi::record_path::<T> as OpenApiPathRecorder);
+        self
+    }
+
+    /// Bulk-register a list of utoipa path recorders. Pairs with the
+    /// `paths!` proc-macro from `kick-rs-macros`:
+    ///
+    /// ```ignore
+    /// use kick_rs::paths;
+    /// define_module("users")
+    ///     .get("/users/:id", get_user)
+    ///     .openapi_paths(paths!(get_user, list_users))
+    ///     .build()
+    /// ```
+    ///
+    /// Equivalent to calling [`Self::openapi_path`] once per handler.
+    #[cfg(feature = "openapi")]
+    pub fn openapi_paths<I>(mut self, recorders: I) -> Self
+    where
+        I: IntoIterator<Item = OpenApiPathRecorder>,
+    {
+        self.openapi_paths.extend(recorders);
         self
     }
 

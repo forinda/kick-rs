@@ -53,6 +53,13 @@ pub use kick_rs_http::HttpModuleBuilder as ModuleBuilder;
 #[cfg(feature = "macros")]
 pub use kick_rs_macros::*;
 
+/// Internal re-export used by macros from `kick-rs-macros` (the
+/// `paths!` macro emits references to `kick_rs::__http::openapi::*`
+/// when the umbrella is the resolved dependency, since adopters using
+/// the umbrella don't list `kick-rs-http` directly).
+#[doc(hidden)]
+pub use kick_rs_http as __http;
+
 // ── Opt-in config loader (feature = "config") ──────────────────────────
 //
 // Layered env / dotenv / TOML / JSON loader. Exposes the entire

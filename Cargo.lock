@@ -588,9 +588,11 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
+ "serde_json",
  "syn",
  "tokio",
  "tower",
+ "utoipa",
 ]
 
 [[package]]

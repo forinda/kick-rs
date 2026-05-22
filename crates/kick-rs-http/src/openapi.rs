@@ -30,6 +30,18 @@ use kick_rs_core::Plugin;
 use std::sync::Arc;
 use utoipa::openapi::{Info, OpenApi};
 
+/// Recorder fn used by [`HttpModuleBuilder::openapi_path`] and the
+/// `paths!` macro. Adds one handler's `(path, methods, operation)` to
+/// the given `Paths` map.
+///
+/// Public + monomorphized so the `paths!` proc-macro can emit values
+/// of fn-pointer type `fn(&mut Paths)` without needing closures or
+/// boxed trait objects.
+#[doc(hidden)]
+pub fn record_path<T: utoipa::Path>(paths: &mut utoipa::openapi::path::Paths) {
+    paths.add_path_operation(T::path(), T::methods(), T::operation());
+}
+
 const DEFAULT_PATH: &str = "/openapi.json";
 
 /// Built-in plugin that serves a pre-rendered OpenAPI spec.
