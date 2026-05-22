@@ -29,6 +29,12 @@ plugin-compression    = ["tower-http/compression-full"]
 plugin-helmet         = []                          # pure header-setting, no extra deps
 plugin-trace-context  = ["dep:uuid"]                # for trace-id / span-id mint when traceparent is missing
 
+# OpenAPI integration. Off by default — adopters that want it opt in,
+# because utoipa pulls in proc-macro / schema-derive machinery that not
+# every app needs. Enabling this exposes the `openapi` module with
+# `OpenApiPlugin`.
+openapi = ["dep:utoipa"]
+
 [dependencies]
 kick-rs-core = { workspace = true }
 axum          = { workspace = true }
@@ -43,6 +49,7 @@ serde         = { workspace = true }
 serde_json    = { workspace = true }
 tracing       = { workspace = true }
 uuid          = { version = "1", features = ["v4", "v7"], optional = true }
+utoipa        = { version = "5", optional = true }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }

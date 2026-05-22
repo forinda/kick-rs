@@ -25,6 +25,8 @@ pub mod inject;
 pub mod middleware;
 pub mod module;
 pub mod module_list;
+#[cfg(feature = "openapi")]
+pub mod openapi;
 pub mod plugins;
 
 pub use bootstrap::{bootstrap, AppState, Bootstrap};

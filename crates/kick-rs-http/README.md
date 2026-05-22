@@ -30,7 +30,8 @@ use the umbrella.
 | `inject`     | `Inject<T>` axum `FromRequestParts` extractor backed by the container     |
 | `error`      | `HttpError` newtype around `KickError` with RFC 7807 problem-details `IntoResponse` |
 | `context`    | `RequestContext` / `Ctx<P>` — per-request typed context (extended in Phase 4 with contributor outputs) |
-| `plugins`    | Built-in `HttpPlugin`s: `RequestIdPlugin`, `RequestLoggerPlugin`, `CorsPlugin`, `CompressionPlugin` — all feature-gated |
+| `plugins`    | Built-in `HttpPlugin`s: `RequestIdPlugin`, `RequestLoggerPlugin`, `CorsPlugin`, `CompressionPlugin`, `HelmetPlugin`, `TraceContextPlugin` — all feature-gated |
+| `openapi`    | (Feature `openapi`) `OpenApiPlugin` that serves a `utoipa::openapi::OpenApi` spec at a configurable path |
 
 ## Built-in plugins
 
@@ -51,6 +52,31 @@ kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features =
 | `TraceContextPlugin`  | `plugin-trace-context`  | `BeforeGlobal`  | W3C `traceparent` parsing + propagation; exposes `TraceContext` extension             |
 
 Mount with `bootstrap().http_plugin(RequestIdPlugin::default())`.
+
+## OpenAPI (opt-in)
+
+Off by default — enable with the `openapi` cargo feature, which pulls
+in [`utoipa`]. Adopters assemble their own `OpenApi` value via
+`#[derive(utoipa::OpenApi)]` and hand it to `OpenApiPlugin::new`:
+
+```rust,ignore
+use kick_rs_http::openapi::OpenApiPlugin;
+use utoipa::OpenApi;
+
+#[derive(OpenApi)]
+#[openapi(paths(crate::users::list, crate::users::get))]
+struct ApiDoc;
+
+bootstrap()
+    .http_plugin(OpenApiPlugin::new(ApiDoc::openapi()))
+    .module(users_module())
+    .listen("0.0.0.0:3000").await
+```
+
+The spec is serialized to JSON once at construction and served as
+`application/json` at `/openapi.json` (or pass `.with_path("/api/spec")`).
+
+[`utoipa`]: https://docs.rs/utoipa
 
 ## Quick example
 
