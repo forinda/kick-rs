@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-macros"
-version     = "0.0.0"
+version     = "0.0.1"
 description = "Opt-in proc-macro sugar for kick-rs (#[service])"
 readme      = "README.md"
 edition.workspace      = true
