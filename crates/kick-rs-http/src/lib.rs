@@ -22,6 +22,7 @@ pub mod contributors;
 pub mod error;
 pub mod http_plugin;
 pub mod inject;
+pub mod middleware;
 pub mod module;
 pub mod plugins;
 
@@ -30,6 +31,7 @@ pub use contributors::{contributors_middleware, Ctx};
 pub use error::{HttpError, HttpResult};
 pub use http_plugin::HttpPlugin;
 pub use inject::Inject;
+pub use middleware::{MiddlewareEntry, MiddlewarePhase};
 pub use module::{define_module, HttpModule, HttpModuleBuilder};
 
 // Re-export the public surface of kick_rs_core so app code can write
