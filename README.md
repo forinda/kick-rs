@@ -171,14 +171,28 @@ rust-pg/                          # this repo (will rename to rustkick before pu
 Rust packages ("crates") are distributed via three mechanisms — all
 first-class in `cargo`. Pick whichever matches what's published today.
 
-### 1. From this git repo (only option today)
+### 1. From crates.io
 
 ```toml
 [dependencies]
-rustkick = { git = "https://github.com/forinda/rustkick", branch = "feature/foundation", features = ["macros"] }
+rustkick = "0.0"
+```
 
-# Pin to a specific commit for reproducibility (recommended pre-v0.1.0):
-# rustkick = { git = "https://github.com/forinda/rustkick", rev = "<sha>", features = ["macros"] }
+`rustkick-core` and `rustkick-http` are also available as standalone
+crates if you only need one.
+
+The `rustkick-macros`, `rustkick-config`, and `rustkick-assets` crates
+are not yet on crates.io — they'll appear as optional features on the
+umbrella once their implementations land (Phase 3 / Phase 5).
+
+### 2. From this git repo (latest unreleased work)
+
+```toml
+[dependencies]
+rustkick = { git = "https://github.com/forinda/rustkick", branch = "main" }
+
+# Pin to a specific commit for reproducibility:
+# rustkick = { git = "https://github.com/forinda/rustkick", rev = "<sha>" }
 ```
 
 `cargo` natively resolves git dependencies — no extra registry config,
@@ -186,21 +200,11 @@ no auth required for public repos. For a private repo, set up
 [git credentials](https://doc.rust-lang.org/cargo/reference/registries.html#authentication)
 or use SSH URLs.
 
-### 2. From crates.io (planned, post-v0.1.0)
-
-```toml
-[dependencies]
-rustkick = { version = "0.1", features = ["macros"] }
-```
-
-This is the public Rust registry at <https://crates.io>. One account,
-`cargo publish` once per release. Not yet — rustkick is pre-release.
-
 ### 3. From a local path (during framework development)
 
 ```toml
 [dependencies]
-rustkick = { path = "../rustkick/crates/rustkick", features = ["macros"] }
+rustkick = { path = "../rustkick/crates/rustkick" }
 ```
 
 Useful when you're hacking on rustkick and a real app side by side.
