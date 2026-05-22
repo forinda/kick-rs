@@ -1,0 +1,14 @@
+//! `hello` resource — two demo routes wired into a kick-rs module.
+
+pub mod handlers;
+
+use kick_rs::{define_module, Module};
+
+/// Build the hello module. Adds two routes under `/hello`.
+pub fn define() -> Module {
+    define_module("hello")
+        .prefix("/hello")
+        .get("/", handlers::greet)
+        .get("/:name", handlers::greet_named)
+        .build()
+}

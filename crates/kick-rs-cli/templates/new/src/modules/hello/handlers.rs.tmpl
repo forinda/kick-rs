@@ -1,0 +1,23 @@
+//! Axum handlers for the `hello` module.
+
+use axum::extract::Path;
+use axum::Json;
+use serde::Serialize;
+
+/// JSON shape returned by both endpoints.
+#[derive(Debug, Serialize)]
+pub struct Greeting {
+    pub message: String,
+}
+
+pub async fn greet() -> Json<Greeting> {
+    Json(Greeting {
+        message: "Hello from kick-rs!".to_owned(),
+    })
+}
+
+pub async fn greet_named(Path(name): Path<String>) -> Json<Greeting> {
+    Json(Greeting {
+        message: format!("Hello, {name}!"),
+    })
+}
