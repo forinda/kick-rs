@@ -29,6 +29,12 @@ plugin-compression    = ["tower-http/compression-full"]
 plugin-helmet         = []                          # pure header-setting, no extra deps
 plugin-trace-context  = ["dep:uuid"]                # for trace-id / span-id mint when traceparent is missing
 
+# AssetsPlugin — serves an `EmbeddedAssets` directory at a configurable
+# URL prefix, with content-type + immutable cache headers driven by the
+# accompanying AssetManifest. Off by default because `include_dir`
+# (pulled via kick-rs-assets) adds noticeable build time.
+plugin-assets         = ["dep:kick-rs-assets"]
+
 # OpenAPI integration. Off by default — adopters that want it opt in,
 # because utoipa pulls in proc-macro / schema-derive machinery that not
 # every app needs. Enabling this exposes the `openapi` module with
@@ -56,8 +62,15 @@ futures       = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }
 tracing       = { workspace = true }
-uuid          = { version = "1", features = ["v4", "v7"], optional = true }
-utoipa        = { version = "5", optional = true }
+uuid           = { version = "1", features = ["v4", "v7"], optional = true }
+utoipa         = { version = "5", optional = true }
+kick-rs-assets = { workspace = true, optional = true }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }
+# Needed by the AssetsPlugin tests below: the `embed_assets!` macro
+# re-exported by kick-rs-assets expands to `::include_dir::*` paths,
+# so the consuming crate must have `include_dir` in scope as a direct
+# dep. End adopters of AssetsPlugin face the same requirement (they
+# invoke the macro from their own crate).
+include_dir = "0.7"

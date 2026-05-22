@@ -63,6 +63,19 @@ if let Some(file) = ASSETS.get_file("app.a1b2c3.js") {
 Disable with `default-features = false` if you only want the manifest
 loader without the `include_dir` build cost.
 
+**Adopter requirement:** the `embed_assets!` macro expands to
+`::include_dir::*` paths, so the consuming crate must list
+`include_dir` in its own `Cargo.toml`:
+
+```toml
+[dependencies]
+kick-rs-assets = "0.1.0-alpha.1"
+include_dir    = "0.7"  # ← required for embed_assets!()
+```
+
+(We can't shield you from that without writing a proc-macro wrapper
+that emits paths through `kick_rs_assets::__private` — planned.)
+
 ## Install
 
 ```toml

@@ -696,6 +696,8 @@ dependencies = [
  "futures",
  "http",
  "hyper",
+ "include_dir",
+ "kick-rs-assets",
  "kick-rs-core",
  "serde",
  "serde_json",

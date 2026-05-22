@@ -50,8 +50,13 @@ kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features =
 | `CompressionPlugin`   | `plugin-compression`    | `AfterGlobal`   | gzip / br / deflate / zstd response compression via `tower_http`                      |
 | `HelmetPlugin`        | `plugin-helmet`         | `BeforeGlobal`  | Baseline security headers (nosniff, frame-deny, HSTS, referrer-policy, COOP/CORP, …)  |
 | `TraceContextPlugin`  | `plugin-trace-context`  | `BeforeGlobal`  | W3C `traceparent` parsing + propagation; exposes `TraceContext` extension             |
+| `AssetsPlugin`        | `plugin-assets`         | route-only      | Serves an `EmbeddedAssets` tree under the manifest's URL prefix with immutable cache headers |
 
 Mount with `bootstrap().http_plugin(RequestIdPlugin::default())`.
+
+`plugin-assets` is **off by default** (pulls in `include_dir` via
+`kick-rs-assets`). Adopters using it also need `include_dir = "0.7"`
+as a direct dep so the `embed_assets!()` macro's expansion resolves.
 
 ## OpenAPI (opt-in)
 

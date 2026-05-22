@@ -40,3 +40,6 @@ pub mod helmet;
 
 #[cfg(feature = "plugin-trace-context")]
 pub mod trace_context;
+
+#[cfg(feature = "plugin-assets")]
+pub mod assets;
