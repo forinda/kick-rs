@@ -31,7 +31,7 @@ pub use container::{Container, ContainerBuilder};
 pub use contributor::{
     erase as erase_contributor, AnyContributor, ContextContributor, ContributorDeps,
     ContributorPipeline, ContributorRequest, ContributorRequestExt, ContributorStore,
-    ErasedContributor, MutableContributorRequest,
+    ErasedContributor, MutableContributorRequest, OnErrorAction,
 };
 pub use error::{KickError, KickResult};
 pub use introspect::{Introspect, IntrospectionKind, IntrospectionSnapshot};

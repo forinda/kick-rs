@@ -251,6 +251,35 @@ fn missing_at_runtime<T: 'static>() -> KickError {
 
 // ──────────────────────────── ContextContributor ─────────────────────────
 
+/// What the pipeline runner does when a contributor's `resolve()`
+/// returns `Err`. Returned by [`ContextContributor::on_error`]; default
+/// is [`Propagate`](Self::Propagate).
+///
+/// Mirrors KickJS's `{ optional, onError }` error matrix in one
+/// typed enum.
+pub enum OnErrorAction<T> {
+    /// Default behavior — re-raise the error. The pipeline aborts and
+    /// the bootstrap-installed HTTP middleware turns it into an RFC
+    /// 7807 problem-details response.
+    Propagate,
+    /// Skip silently — don't insert anything into the store; downstream
+    /// consumers see the value as absent (`ctx.try_get::<T>()` ->
+    /// `None`). Equivalent to KickJS `optional: true`.
+    ///
+    /// **Caveat:** other contributors that declared this contributor's
+    /// `Key` as a `Deps` element will fail at runtime with
+    /// `RK_E_MISSING_CONTRIBUTOR`. The pipeline's boot-time topo-sort
+    /// can't predict skip behavior. Either chain optional consumers
+    /// after optional producers (each one its own `Skip`-able link),
+    /// or make consumers tolerate absence by reading with
+    /// [`ContributorRequestExt::get`].
+    Skip,
+    /// Recover — substitute this value as the contributor's output.
+    /// The pipeline continues as if `resolve()` had returned `Ok`.
+    /// Equivalent to KickJS `onError(err) -> value`.
+    Recover(T),
+}
+
 /// Declarative populator of a per-request value, with typed
 /// dependencies that the pipeline topo-sorts at boot.
 pub trait ContextContributor: Send + Sync + Sized + 'static {
@@ -272,6 +301,13 @@ pub trait ContextContributor: Send + Sync + Sized + 'static {
         ctx: &'a dyn ContributorRequest,
         deps: <Self::Deps as ContributorDeps>::Resolved<'a>,
     ) -> impl Future<Output = KickResult<Self::Key>> + Send + 'a;
+
+    /// Decide how to handle a `resolve()` failure. Default propagates.
+    /// Override to return [`OnErrorAction::Skip`] (optional contributor)
+    /// or [`OnErrorAction::Recover(fallback)`](OnErrorAction::Recover).
+    fn on_error(&self, _err: &KickError) -> OnErrorAction<Self::Key> {
+        OnErrorAction::Propagate
+    }
 }
 
 // ───────────────────── Object-safe erased contributor ─────────────────────
@@ -323,9 +359,20 @@ impl<C: ContextContributor> ErasedContributor for ContributorAdapter<C> {
             // flight (one for deps refs, one for the `ctx` parameter);
             // the mutable insert happens only after both are dropped.
             let deps = <C::Deps as ContributorDeps>::extract(&*ctx)?;
-            let key = self.inner.resolve(&*ctx, deps).await?;
-            ctx.insert(TypeId::of::<C::Key>(), Box::new(key));
-            Ok(())
+            match self.inner.resolve(&*ctx, deps).await {
+                Ok(key) => {
+                    ctx.insert(TypeId::of::<C::Key>(), Box::new(key));
+                    Ok(())
+                }
+                Err(err) => match self.inner.on_error(&err) {
+                    OnErrorAction::Propagate => Err(err),
+                    OnErrorAction::Skip => Ok(()),
+                    OnErrorAction::Recover(key) => {
+                        ctx.insert(TypeId::of::<C::Key>(), Box::new(key));
+                        Ok(())
+                    }
+                },
+            }
         })
     }
 }
@@ -721,6 +768,78 @@ mod tests {
         // returns None instead of panicking.
         let store = ContributorStore::new();
         assert!(store.try_inject::<ReadTenant>().is_none());
+    }
+
+    // ── OnErrorAction: Propagate / Skip / Recover ────────────────────────────
+
+    struct FailingTenant;
+    impl ContextContributor for FailingTenant {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, _: ()) -> KickResult<Tenant> {
+            Err(KickError::new("RK_TEST_FAIL", "deliberate test failure"))
+        }
+    }
+
+    #[tokio::test]
+    async fn on_error_propagate_is_the_default() {
+        let p = ContributorPipeline::build(vec![erase(FailingTenant)]).unwrap();
+        let mut store = ContributorStore::new();
+        let err = p.run(&mut store).await.unwrap_err();
+        assert_eq!(err.code, "RK_TEST_FAIL");
+    }
+
+    struct OptionalFailingTenant;
+    impl ContextContributor for OptionalFailingTenant {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, _: ()) -> KickResult<Tenant> {
+            Err(KickError::new("RK_TEST_FAIL", "deliberate test failure"))
+        }
+        fn on_error(&self, _: &KickError) -> OnErrorAction<Tenant> {
+            OnErrorAction::Skip
+        }
+    }
+
+    #[tokio::test]
+    async fn on_error_skip_swallows_the_failure() {
+        let p = ContributorPipeline::build(vec![erase(OptionalFailingTenant)]).unwrap();
+        let mut store = ContributorStore::new();
+        p.run(&mut store).await.unwrap();
+        assert!(
+            store.get::<Tenant>().is_none(),
+            "Skip must not insert anything into the store"
+        );
+    }
+
+    struct RecoveringTenant;
+    impl ContextContributor for RecoveringTenant {
+        type Key = Tenant;
+        type Deps = ();
+        async fn resolve<'a>(&'a self, _: &'a dyn ContributorRequest, _: ()) -> KickResult<Tenant> {
+            Err(KickError::new("RK_TEST_FAIL", "deliberate test failure"))
+        }
+        fn on_error(&self, _: &KickError) -> OnErrorAction<Tenant> {
+            OnErrorAction::Recover(Tenant { id: 999 })
+        }
+    }
+
+    #[tokio::test]
+    async fn on_error_recover_substitutes_a_value() {
+        let p = ContributorPipeline::build(vec![erase(RecoveringTenant)]).unwrap();
+        let mut store = ContributorStore::new();
+        p.run(&mut store).await.unwrap();
+        assert_eq!(store.get::<Tenant>(), Some(&Tenant { id: 999 }));
+    }
+
+    #[tokio::test]
+    async fn skip_consumer_observes_absence_via_try_get() {
+        // The skipped Key isn't present, so downstream code reading it
+        // via `try_get` (or `get`) sees None and can branch.
+        let p = ContributorPipeline::build(vec![erase(OptionalFailingTenant)]).unwrap();
+        let mut store = ContributorStore::new();
+        p.run(&mut store).await.unwrap();
+        assert!(store.try_get(std::any::TypeId::of::<Tenant>()).is_none());
     }
 
     #[tokio::test]

@@ -24,8 +24,8 @@ pub use kick_rs_core::{
     BuildContext, Container, ContainerBuilder, ContextContributor, ContributorDeps,
     ContributorPipeline, ContributorRequest, ContributorRequestExt, ContributorStore, Introspect,
     IntrospectionKind, IntrospectionSnapshot, KickError, KickResult, Module as CoreModule,
-    ModuleBuilder as CoreModuleBuilder, Plugin, PluginDef, PluginFactory, ProviderSpec, Scope,
-    ServiceImpl, Token,
+    ModuleBuilder as CoreModuleBuilder, OnErrorAction, Plugin, PluginDef, PluginFactory,
+    ProviderSpec, Scope, ServiceImpl, Token,
 };
 
 // ── HTTP (the default user-facing surface) ─────────────────────────────
