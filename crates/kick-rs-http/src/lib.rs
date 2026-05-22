@@ -20,6 +20,7 @@
 pub mod bootstrap;
 pub mod contributors;
 pub mod error;
+pub mod http_plugin;
 pub mod inject;
 pub mod module;
 pub mod plugins;
@@ -27,6 +28,7 @@ pub mod plugins;
 pub use bootstrap::{bootstrap, AppState, Bootstrap};
 pub use contributors::{contributors_middleware, Ctx};
 pub use error::{HttpError, HttpResult};
+pub use http_plugin::HttpPlugin;
 pub use inject::Inject;
 pub use module::{define_module, HttpModule, HttpModuleBuilder};
 

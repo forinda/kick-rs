@@ -829,7 +829,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "kick-rs-core",
  "kick-rs-http",
@@ -838,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-core"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "serde",
@@ -849,7 +849,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-http"
-version = "0.0.1"
+version = "0.0.2"
 dependencies = [
  "async-trait",
  "axum",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-macros"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
