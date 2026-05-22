@@ -57,6 +57,21 @@ curl -s -X PATCH http://localhost:3000/users/<id> \
 curl -s -X DELETE http://localhost:3000/users/<id>
 ```
 
+## OpenAPI
+
+Each handler carries a `#[utoipa::path(...)]` annotation; the module
+registers them with `.openapi_paths(paths!(list, show, ...))` (a
+single proc-macro call, no parallel `#[derive(OpenApi)]` block). At
+boot, `OpenApiPlugin::from_modules(...)` walks the module tree and
+serves the spec:
+
+```bash
+curl -s http://localhost:3000/openapi.json | jq .info
+```
+
+Adopters who want Swagger UI / Redoc / Scalar can mount one alongside
+— this example sticks to the raw spec to keep the binary slim.
+
 ## Migrations
 
 The example uses **sqlx-cli's reversible migrations** (`.up.sql` +

@@ -9,7 +9,7 @@ publish     = false
 # kick-rs lives in the workspace one directory up — relative path keeps
 # the example unaware of any published version. `macros` enables the
 # #[service] proc-macro used by repository.rs / service.rs.
-kick-rs = { path = "../../crates/kick-rs", features = ["macros", "config"] }
+kick-rs = { path = "../../crates/kick-rs", features = ["macros", "config", "openapi"] }
 
 tokio      = { version = "1", features = ["macros", "rt-multi-thread", "signal"] }
 axum       = "0.7"
@@ -22,3 +22,4 @@ tracing    = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 thiserror  = "2"
 async-trait = "0.1"
+utoipa     = { version = "5", features = ["uuid", "chrono"] }

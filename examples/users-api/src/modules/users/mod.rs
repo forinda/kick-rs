@@ -7,7 +7,7 @@ pub mod model;
 pub mod repository;
 pub mod service;
 
-use kick_rs::{define_module, Module};
+use kick_rs::{define_module, paths, Module};
 use repository::UserRepository;
 use service::UserService;
 
@@ -16,7 +16,9 @@ use service::UserService;
 ///
 /// `#[service]` on `UserRepository` and `UserService` generates the
 /// container-construction logic, so registration is a single
-/// `.service::<T>()` call per type.
+/// `.service::<T>()` call per type. `paths!(...)` registers each
+/// handler's `#[utoipa::path]` metadata so the spec served at
+/// `/openapi.json` is built from the same list of handler names.
 pub fn define() -> Module {
     define_module("users")
         .prefix("/users")
@@ -27,5 +29,12 @@ pub fn define() -> Module {
         .post("/", handlers::create)
         .patch("/:id", handlers::update)
         .delete("/:id", handlers::delete)
+        .openapi_paths(paths!(
+            handlers::list,
+            handlers::show,
+            handlers::create,
+            handlers::update,
+            handlers::delete
+        ))
         .build()
 }
