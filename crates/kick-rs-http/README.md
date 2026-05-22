@@ -30,6 +30,25 @@ use the umbrella.
 | `inject`     | `Inject<T>` axum `FromRequestParts` extractor backed by the container     |
 | `error`      | `HttpError` newtype around `KickError` with RFC 7807 problem-details `IntoResponse` |
 | `context`    | `RequestContext` / `Ctx<P>` — per-request typed context (extended in Phase 4 with contributor outputs) |
+| `plugins`    | Built-in `HttpPlugin`s: `RequestIdPlugin`, `RequestLoggerPlugin`, `CorsPlugin`, `CompressionPlugin` — all feature-gated |
+
+## Built-in plugins
+
+All four are enabled by default. Disable any subset with
+`default-features = false` and pick à-la-carte:
+
+```toml
+kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features = ["plugin-request-id"] }
+```
+
+| Plugin                | Feature gate           | Phase           | What it does                                                                  |
+|-----------------------|------------------------|-----------------|-------------------------------------------------------------------------------|
+| `RequestIdPlugin`     | `plugin-request-id`    | `BeforeGlobal`  | Reads inbound `X-Request-Id` or generates UUIDv7; mirrors to response header  |
+| `RequestLoggerPlugin` | `plugin-request-logger`| `AfterGlobal`   | Emits one `tracing::info!` per request (method/path/status/elapsed_us)        |
+| `CorsPlugin`          | `plugin-cors`          | `BeforeGlobal`  | Wraps `tower_http::cors::CorsLayer` (`::permissive()` / `::with_layer(...)`)  |
+| `CompressionPlugin`   | `plugin-compression`   | `AfterGlobal`   | gzip / br / deflate / zstd response compression via `tower_http`              |
+
+Mount with `bootstrap().http_plugin(RequestIdPlugin::default())`.
 
 ## Quick example
 
