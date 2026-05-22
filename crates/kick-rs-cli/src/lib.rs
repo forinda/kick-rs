@@ -10,6 +10,7 @@
 
 pub mod add;
 pub mod generate;
+pub mod info;
 pub mod new;
 pub mod register;
 pub mod templates;

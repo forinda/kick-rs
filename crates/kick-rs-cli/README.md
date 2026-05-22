@@ -181,10 +181,40 @@ Flags:
 - `--path <PATH>` — override project-root detection.
 - `--dep-name <NAME>` — mutate a differently-named dep (rare; defaults to `kick-rs`).
 
+### `cargo kick info`
+
+Print a snapshot of the current kick-rs project — package version,
+the `kick-rs` dep version + enabled features, and every module on
+disk with the services and contributors registered on each:
+
+```bash
+$ cargo kick info
+kick-rs project: my-app 0.1.0
+  root:        /path/to/my-app
+  kick-rs dep: 0.1.0-alpha.3
+  features:    macros, config, openapi
+
+modules (2):
+  - hello (prefix /hello)
+  - posts (prefix /posts)
+      services:     PostService
+      contributors: LoadPost
+```
+
+Module detail is parsed from the same `define_module(...)`,
+`.prefix(...)`, `.service::<...>()`, `.contribute(...)` patterns
+the scaffold + generators emit. Custom builder wrappers fall back to
+a directory-name-only entry.
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--dep-name <NAME>` — inspect a renamed dep (defaults to `kick-rs`).
+
 ## Status
 
-`new`, `g module`, `g service`, `g contributor`, `add` today (with
-auto-registration on the generators). Planned: `dev`, `info`, `check`.
+`new`, `g module`, `g service`, `g contributor`, `add`, `info` today
+(with auto-registration on the generators). Planned: `dev`, `check`.
 
 ## License
 
