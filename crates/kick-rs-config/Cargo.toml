@@ -1,9 +1,8 @@
 [package]
 name        = "kick-rs-config"
-version     = "0.0.0"
-description = "Env loader + ConfigService for kick-rs — Zod-style typed env validation"
-# Placeholder body. Gated until Phase 5. See RELEASE.md.
-publish     = false
+version     = "0.1.0-alpha.1"
+description = "Layered, typed configuration loader for kick-rs (defaults + env + dotenv + toml + json)"
+readme      = "README.md"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
@@ -12,4 +11,9 @@ authors.workspace      = true
 
 [dependencies]
 kick-rs-core = { workspace = true }
-serde         = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+toml         = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

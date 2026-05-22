@@ -45,10 +45,17 @@ pub use kick_rs_http::HttpModuleBuilder as ModuleBuilder;
 //
 // Re-exports `#[service]` (and any future proc-macros) from
 // `kick-rs-macros`. Adopters opt in via:
-//   kick-rs = { version = "0.0", features = ["macros"] }
+//   kick-rs = { version = "0.1", features = ["macros"] }
 //
-// The `config` and `assets` re-exports will return once those crates
-// reach publish-ready state (Phase 5). Adopters who need them earlier
-// can depend on them directly via git.
+// The `assets` re-export will return once `kick-rs-assets` reaches
+// publish-ready state. Adopters who need it earlier can depend on it
+// directly.
 #[cfg(feature = "macros")]
 pub use kick_rs_macros::*;
+
+// ── Opt-in config loader (feature = "config") ──────────────────────────
+//
+// Layered env / dotenv / TOML / JSON loader. Exposes the entire
+// `kick-rs-config` surface under `kick_rs::config`.
+#[cfg(feature = "config")]
+pub use kick_rs_config as config;
