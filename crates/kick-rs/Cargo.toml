@@ -1,0 +1,24 @@
+[package]
+name        = "kick-rs"
+version     = "0.0.0"
+description = "Module-driven web framework for Rust — a port of KickJS on axum"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+readme      = "README.md"
+
+# Optional features for the auxiliary crates (kick-rs-macros / -config /
+# -assets) are intentionally not declared here yet. Those crates carry
+# `publish = false` until their implementations land, and an optional
+# dep on a non-published crate would block this umbrella from being
+# published itself. The features will be restored as each underlying
+# crate becomes publishable:
+#   * `macros`  — Phase 3, when proc-macros land
+#   * `config`  — Phase 5, when env loader lands
+#   * `assets`  — Phase 5, when asset manifest lands
+
+[dependencies]
+kick-rs-core = { workspace = true }
+kick-rs-http = { workspace = true }

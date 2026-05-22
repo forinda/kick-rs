@@ -828,6 +828,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "kick-rs"
+version = "0.0.0"
+dependencies = [
+ "kick-rs-core",
+ "kick-rs-http",
+]
+
+[[package]]
+name = "kick-rs-core"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "kick-rs-http"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "futures",
+ "http",
+ "hyper",
+ "kick-rs-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1224,43 +1261,6 @@ dependencies = [
  "spki",
  "subtle",
  "zeroize",
-]
-
-[[package]]
-name = "rustkick"
-version = "0.0.0"
-dependencies = [
- "rustkick-core",
- "rustkick-http",
-]
-
-[[package]]
-name = "rustkick-core"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "serde",
- "serde_json",
- "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "rustkick-http"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "axum",
- "futures",
- "http",
- "hyper",
- "rustkick-core",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
 ]
 
 [[package]]
@@ -1956,7 +1956,7 @@ dependencies = [
  "async-trait",
  "axum",
  "chrono",
- "rustkick",
+ "kick-rs",
  "serde",
  "serde_json",
  "sqlx",

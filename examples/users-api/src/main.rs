@@ -1,11 +1,11 @@
-//! `users-api` — minimal rustkick example.
+//! `users-api` — minimal kick-rs example.
 //!
 //! Wiring:
 //! 1. Read env (DATABASE_URL, BIND_ADDR)
 //! 2. Open a sqlx PgPool
 //! 3. Run pending up-migrations via `sqlx::migrate!()` (embeds the
 //!    `migrations/` directory into the binary at compile time)
-//! 4. Hand the pool to rustkick as a DI singleton via a small infra
+//! 4. Hand the pool to kick-rs as a DI singleton via a small infra
 //!    module
 //! 5. Mount the `users` module and listen
 //!
@@ -20,7 +20,7 @@ mod config;
 mod modules;
 
 use config::Env;
-use rustkick::{bootstrap, define_module, KickError, KickResult, Module};
+use kick_rs::{bootstrap, define_module, KickError, KickResult, Module};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 

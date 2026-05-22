@@ -1,6 +1,6 @@
 # users-api
 
-> **Phase 2 example** for [rustkick](../../README.md) — a minimal users
+> **Phase 2 example** for [kick-rs](../../README.md) — a minimal users
 > CRUD service on Postgres via sqlx, exercising the framework's
 > Container + Module + Adapter wiring end-to-end against a real DB.
 
@@ -11,7 +11,7 @@ for the framework itself.
 
 ## What it demonstrates
 
-- `bootstrap()` driving the full rustkick lifecycle against axum
+- `bootstrap()` driving the full kick-rs lifecycle against axum
 - `define_module()` registering services + routes
 - `service_factory(|c| ...)` resolving dependencies from the container
 - `Inject<T>` extractor in handlers
@@ -84,7 +84,7 @@ For different needs:
 | `diesel_cli`          | Directory per migration            | `up.sql` + `down.sql` always |
 | `sea-orm-migration`   | Rust code (DSL, DB-agnostic)       | `async fn up` / `async fn down` |
 
-Adopters of rustkick are free to swap out the migration strategy — none
+Adopters of kick-rs are free to swap out the migration strategy — none
 of it is in the framework.
 
 ## Repo layout
@@ -103,7 +103,7 @@ examples/users-api/
     └── modules/
         ├── mod.rs
         └── users/
-            ├── mod.rs               # `define()` -> rustkick::Module
+            ├── mod.rs               # `define()` -> kick-rs::Module
             ├── model.rs             # User, CreateUser, UpdateUser
             ├── repository.rs        # sqlx CRUD
             ├── service.rs           # business logic + typed errors

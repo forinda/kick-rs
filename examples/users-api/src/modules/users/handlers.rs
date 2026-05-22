@@ -5,7 +5,7 @@ use super::service::{UserError, UserService};
 use axum::extract::Path;
 use axum::http::StatusCode;
 use axum::Json;
-use rustkick::{HttpError, HttpResult, Inject, KickError};
+use kick_rs::{HttpError, HttpResult, Inject, KickError};
 use uuid::Uuid;
 
 /// Map a service-layer `UserError` into the framework's structured

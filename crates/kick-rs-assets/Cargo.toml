@@ -1,0 +1,16 @@
+[package]
+name        = "kick-rs-assets"
+version     = "0.0.0"
+description = "Typed asset manifest + cache-busting resolver for kick-rs"
+# Placeholder body. Gated until Phase 5. See RELEASE.md.
+publish     = false
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[dependencies]
+kick-rs-core = { workspace = true }
+serde         = { workspace = true }
+serde_json    = { workspace = true }

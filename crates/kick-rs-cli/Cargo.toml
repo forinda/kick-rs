@@ -1,0 +1,21 @@
+[package]
+name        = "kick-rs-cli"
+version     = "0.0.0"
+description = "`cargo kick` subcommand — scaffold, dev, generate, add"
+# Placeholder binary. Gated until Phase 5. See RELEASE.md.
+publish     = false
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[[bin]]
+# Cargo subcommand convention — `cargo-<name>` runs as `cargo <name>`.
+# Aliased down from `kick-rs` to `kick` for typability.
+name = "cargo-kick"
+path = "src/main.rs"
+
+[dependencies]
+# Real CLI deps (clap, minijinja, ...) land when the CLI is implemented;
+# kept minimal here so the workspace builds.

@@ -4,7 +4,7 @@
 #
 # Required secrets:
 #   * CARGO_REGISTRY_TOKEN — created on https://crates.io/me, scoped to
-#     `publish-update`. Until rustkick is published once, this can be
+#     `publish-update`. Until kick-rs is published once, this can be
 #     omitted; release-plz will still open the Release PR with version
 #     bumps + CHANGELOG updates, just skipping the publish step.
 #
@@ -36,7 +36,7 @@ jobs:
   release-plz:
     name: release-plz
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'forinda/rustkick' }}
+    if: ${{ github.repository == 'forinda/kick-rs' }}
     permissions:
       contents: write
       pull-requests: write

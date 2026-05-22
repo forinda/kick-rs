@@ -1,0 +1,20 @@
+[package]
+name        = "kick-rs-macros"
+version     = "0.0.0"
+description = "Opt-in proc-macro sugar for kick-rs (#[service], #[handler], #[get], ...)"
+# Placeholder body (todo!() expansions). Gated until Phase 3.
+# See RELEASE.md → "Versioning model".
+publish     = false
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn         = { workspace = true }
+quote       = { workspace = true }
+proc-macro2 = { workspace = true }

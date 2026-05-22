@@ -1,0 +1,15 @@
+[package]
+name        = "kick-rs-config"
+version     = "0.0.0"
+description = "Env loader + ConfigService for kick-rs — Zod-style typed env validation"
+# Placeholder body. Gated until Phase 5. See RELEASE.md.
+publish     = false
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[dependencies]
+kick-rs-core = { workspace = true }
+serde         = { workspace = true }

@@ -1,4 +1,4 @@
-# rustkick
+# kick-rs
 
 > **A Rust port of [KickJS](https://github.com/forinda/kick-js).**
 > Module-driven, adapter-extensible, contributor-pipelined web framework
@@ -41,7 +41,7 @@ Build state:
 
 What does **not** yet exist:
 
-- `cargo rustkick` CLI — placeholder binary (Phase 5)
+- `cargo kick-rs` CLI — placeholder binary (Phase 5)
 - `#[service]` / `#[handler]` / `#[get]` proc-macros — Phase 3
 - Context contributors with typed `Deps` — Phase 4
 - DB adapter (sqlx/diesel/sea-orm) — explicitly out of scope; lives in
@@ -69,7 +69,7 @@ organized as they grow.
 
 Rustkick brings that model over, with the things Rust does better:
 
-| KickJS                                  | rustkick                                            |
+| KickJS                                  | kick-rs                                            |
 |-----------------------------------------|-----------------------------------------------------|
 | Decorator metadata, runtime reflection  | Proc-macros, real types, compile-time wiring        |
 | `kick typegen` to sync routes ↔ types   | Routes ↔ types are the same thing, always           |
@@ -78,7 +78,7 @@ Rustkick brings that model over, with the things Rust does better:
 | `Promise.allSettled` for shutdown       | `tokio::join!` + per-adapter timeout budgets        |
 | `@Inject('app/users/repository')`       | `Inject<UserRepository>` extractor on the handler   |
 
-See the [comparison table in SPEC.md §10](./SPEC.md#10-comparison-kickjs--rustkick)
+See the [comparison table in SPEC.md §10](./SPEC.md#10-comparison-kickjs--kick-rs)
 for the full row-by-row mapping.
 
 ---
@@ -86,14 +86,14 @@ for the full row-by-row mapping.
 ## Hello world (compiles today)
 
 ```rust
-use rustkick::{bootstrap, define_module, Inject, KickResult};
+use kick-rs::{bootstrap, define_module, Inject, KickResult};
 use axum::Json;
 use std::sync::Arc;
 
 struct HelloService;
 impl HelloService {
     fn greet(&self, name: &str) -> serde_json::Value {
-        serde_json::json!({ "message": format!("Hello {name} from rustkick!") })
+        serde_json::json!({ "message": format!("Hello {name} from kick-rs!") })
     }
 }
 
@@ -101,7 +101,7 @@ async fn index(svc: Inject<HelloService>) -> Json<serde_json::Value> {
     Json(svc.greet("World"))
 }
 
-fn hello_module() -> rustkick::Module {
+fn hello_module() -> kick-rs::Module {
     define_module("hello")
         .prefix("/hello")
         .service_value(HelloService)
@@ -132,14 +132,14 @@ Top-level summary:
 | Phase | Goal                                                            | Status   |
 |-------|-----------------------------------------------------------------|----------|
 | 0     | Spec + architecture documents, workspace scaffold               | **Done** |
-| 1     | `rustkick-core` Container/Module/Adapter + `rustkick-http` axum | **Done** |
+| 1     | `kick-rs-core` Container/Module/Adapter + `kick-rs-http` axum | **Done** |
 | 2     | `examples/users-api`: CRUD with a local sqlx Postgres adapter   | **Done** |
-| 3     | `rustkick-macros`: `#[service]` / `#[handler]` / `#[get]` sugar | Pending  |
+| 3     | `kick-rs-macros`: `#[service]` / `#[handler]` / `#[get]` sugar | Pending  |
 | 4     | Context contributors with typed tuple `Deps`                    | Pending  |
 | 5     | Adapter shutdown polish, OpenAPI, auth, CLI                     | Pending  |
 | 6     | Ecosystem crates (ws, queue, otel, devtools)                    | Future   |
 
-DB-related crates (`rustkick-pg`, `rustkick-diesel`, …) are **not** on the
+DB-related crates (`kick-rs-pg`, `kick-rs-diesel`, …) are **not** on the
 roadmap. DB code lives in user code or examples; the framework stays lean.
 
 ---
@@ -147,26 +147,26 @@ roadmap. DB code lives in user code or examples; the framework stays lean.
 ## Crate layout
 
 ```
-rust-pg/                          # this repo (will rename to rustkick before publish)
+rust-pg/                          # this repo (will rename to kick-rs before publish)
 ├── SPEC.md                       # design spec
 ├── ARCHITECTURE.md               # internals
 ├── README.md                     # this file
 ├── Cargo.toml                    # workspace manifest
 └── crates/
-    ├── rustkick/                 # umbrella crate — `use rustkick::*`
-    ├── rustkick-core/            # Container, Module, Adapter, Plugin, errors
-    ├── rustkick-http/            # axum integration, Inject, Ctx, bootstrap
-    ├── rustkick-macros/          # #[service], #[handler], #[get] proc-macros
-    ├── rustkick-config/          # env loader + ConfigService
-    ├── rustkick-assets/          # asset manifest + typed keys
-    └── rustkick-cli/             # `cargo rustkick` subcommand
+    ├── kick-rs/                 # umbrella crate — `use kick-rs::*`
+    ├── kick-rs-core/            # Container, Module, Adapter, Plugin, errors
+    ├── kick-rs-http/            # axum integration, Inject, Ctx, bootstrap
+    ├── kick-rs-macros/          # #[service], #[handler], #[get] proc-macros
+    ├── kick-rs-config/          # env loader + ConfigService
+    ├── kick-rs-assets/          # asset manifest + typed keys
+    └── kick-rs-cli/             # `cargo kick-rs` subcommand
 ```
 
 `examples/` will appear once Phase 2 begins.
 
 ---
 
-## Installing rustkick in your project
+## Installing kick-rs in your project
 
 Rust packages ("crates") are distributed via three mechanisms — all
 first-class in `cargo`. Pick whichever matches what's published today.
@@ -175,13 +175,13 @@ first-class in `cargo`. Pick whichever matches what's published today.
 
 ```toml
 [dependencies]
-rustkick = "0.0"
+kick-rs = "0.0"
 ```
 
-`rustkick-core` and `rustkick-http` are also available as standalone
+`kick-rs-core` and `kick-rs-http` are also available as standalone
 crates if you only need one.
 
-The `rustkick-macros`, `rustkick-config`, and `rustkick-assets` crates
+The `kick-rs-macros`, `kick-rs-config`, and `kick-rs-assets` crates
 are not yet on crates.io — they'll appear as optional features on the
 umbrella once their implementations land (Phase 3 / Phase 5).
 
@@ -189,10 +189,10 @@ umbrella once their implementations land (Phase 3 / Phase 5).
 
 ```toml
 [dependencies]
-rustkick = { git = "https://github.com/forinda/rustkick", branch = "main" }
+kick-rs = { git = "https://github.com/forinda/kick-rs", branch = "main" }
 
 # Pin to a specific commit for reproducibility:
-# rustkick = { git = "https://github.com/forinda/rustkick", rev = "<sha>" }
+# kick-rs = { git = "https://github.com/forinda/kick-rs", rev = "<sha>" }
 ```
 
 `cargo` natively resolves git dependencies — no extra registry config,
@@ -204,10 +204,10 @@ or use SSH URLs.
 
 ```toml
 [dependencies]
-rustkick = { path = "../rustkick/crates/rustkick" }
+kick-rs = { path = "../kick-rs/crates/kick-rs" }
 ```
 
-Useful when you're hacking on rustkick and a real app side by side.
+Useful when you're hacking on kick-rs and a real app side by side.
 
 ---
 
@@ -239,8 +239,8 @@ install with `cargo install cargo-watch`.
 
 Each crate in `crates/` will version independently — same model as
 `tokio-*` and `tower-*`. Release tags: `<crate>-vX.Y.Z`. The umbrella
-`rustkick` crate will pin matching minor versions of `rustkick-core`
-and `rustkick-http`.
+`kick-rs` crate will pin matching minor versions of `kick-rs-core`
+and `kick-rs-http`.
 
 Not in effect yet — everything is at `0.0.0` until Phase 1 lands.
 
