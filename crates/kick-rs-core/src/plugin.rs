@@ -23,13 +23,32 @@
 //! and adapters, giving plugin authors the same composition primitives
 //! as application code. Tracked as Phase 5 work.
 
-use crate::adapter::BuildContext;
+use crate::adapter::{Adapter, BuildContext};
 use crate::container::ContainerBuilder;
 use crate::contributor::AnyContributor;
 use crate::error::KickResult;
+use crate::module::Module;
 use std::marker::PhantomData;
+use std::sync::Arc;
 
-/// A packaged bundle of DI providers, tower layers, and contributors.
+/// A packaged bundle a plugin contributes to the application.
+///
+/// Every method has a sensible default so plugin authors only override
+/// what they actually ship. The common shape:
+///
+/// ```ignore
+/// struct MetricsPlugin;
+/// impl Plugin for MetricsPlugin {
+///     fn name(&self) -> &str { "metrics" }
+///     fn adapters(&self) -> Vec<Arc<dyn Adapter>> { vec![Arc::new(MetricsAdapter::new())] }
+///     fn contributors(&self) -> Vec<AnyContributor> { vec![erase_contributor(AttachRequestId)] }
+/// }
+/// ```
+///
+/// HTTP-specific extensions (handler routes, tower layers) live on
+/// [`HttpPlugin`](../../kick_rs_http/trait.HttpPlugin.html) in the HTTP
+/// crate; this trait stays transport-agnostic so non-HTTP transports
+/// (queue workers, CLIs) can use the same plugin contract.
 pub trait Plugin: Send + Sync + 'static {
     /// Stable name used for logging and `depends_on` lookups.
     fn name(&self) -> &str;
@@ -49,9 +68,50 @@ pub trait Plugin: Send + Sync + 'static {
         Ok(())
     }
 
-    /// Context contributors to add to the pipeline.
+    /// Context contributors this plugin ships. Aggregated with module-
+    /// and bootstrap-level contributors into the per-app topo-sorted
+    /// pipeline at boot.
     fn contributors(&self) -> Vec<AnyContributor> {
         Vec::new()
+    }
+
+    /// Adapters this plugin ships. Aggregated with bootstrap-level
+    /// adapters and topo-sorted by `depends_on` at boot. Useful for
+    /// plugins that bring their own connection pool, background worker,
+    /// or observability exporter as a single unit.
+    fn adapters(&self) -> Vec<Arc<dyn Adapter>> {
+        Vec::new()
+    }
+
+    /// Transport-agnostic modules this plugin ships — providers +
+    /// sub-module trees, no HTTP routes. Use this for shared service
+    /// trees a plugin wants to surface without owning any handler
+    /// endpoints. Plugins that ship HTTP routes should implement
+    /// [`HttpPlugin`](../../kick_rs_http/trait.HttpPlugin.html) instead.
+    fn modules(&self) -> Vec<Module> {
+        Vec::new()
+    }
+
+    /// Post-startup task — runs once after the server is bound and
+    /// `Adapter::after_start` has fired for every adapter. Useful for
+    /// emitting "ready" log lines, warming caches, or pinging external
+    /// systems. Errors are logged but don't abort the running server.
+    ///
+    /// Sequential across plugins; if you need fan-out, spawn inside.
+    fn on_ready(
+        &self,
+        _container: &crate::Container,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = KickResult<()>> + Send + '_>> {
+        Box::pin(async move { Ok(()) })
+    }
+
+    /// Cooperative shutdown — runs once during the framework's graceful
+    /// shutdown phase alongside `Adapter::shutdown`. Useful for plugins
+    /// that own resources independent of any adapter.
+    fn shutdown(
+        &self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = KickResult<()>> + Send + '_>> {
+        Box::pin(async move { Ok(()) })
     }
 }
 

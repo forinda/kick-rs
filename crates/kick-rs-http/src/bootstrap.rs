@@ -39,6 +39,9 @@ pub struct Bootstrap {
     modules: Vec<HttpModule>,
     adapters: Vec<Arc<dyn Adapter>>,
     plugins: Vec<Arc<dyn Plugin>>,
+    /// HTTP-aware plugins, tracked separately so their `http_modules()`
+    /// can be aggregated alongside user-provided modules.
+    http_plugins: Vec<Arc<dyn crate::HttpPlugin>>,
     /// Contributors registered globally on the bootstrap builder, used
     /// for cross-cutting per-request values (e.g. `CurrentUser` derived
     /// from auth headers). Combined with module- and plugin-level
@@ -66,9 +69,27 @@ impl Bootstrap {
         self
     }
 
-    /// Register a plugin instance.
+    /// Register a transport-agnostic plugin. Use [`Self::http_plugin`]
+    /// if the plugin ships HTTP routes via [`HttpPlugin::http_modules`](crate::HttpPlugin::http_modules).
     pub fn plugin<P: Plugin + 'static>(mut self, p: P) -> Self {
         self.plugins.push(Arc::new(p));
+        self
+    }
+
+    /// Register an HTTP-aware plugin. Behaves like [`Self::plugin`] but
+    /// additionally folds the plugin's [`HttpModule`]s into the app
+    /// router alongside user-provided modules.
+    ///
+    /// Use this when the plugin ships handler endpoints
+    /// (e.g. `/auth/login`, `/health`, `/__debug`). Plain `Plugin`
+    /// authors that don't carry routes can stick with [`Self::plugin`].
+    pub fn http_plugin<P: crate::HttpPlugin + 'static>(mut self, p: P) -> Self {
+        let arc: Arc<P> = Arc::new(p);
+        // Store under both the `Plugin` and `HttpPlugin` views so the
+        // base lifecycle (depends_on, contributors, adapters, modules)
+        // and the HTTP extension (http_modules) both find it.
+        self.plugins.push(Arc::clone(&arc) as Arc<dyn Plugin>);
+        self.http_plugins.push(arc as Arc<dyn crate::HttpPlugin>);
         self
     }
 
@@ -100,36 +121,73 @@ impl Bootstrap {
             modules,
             adapters,
             plugins,
+            http_plugins,
             global_contributors,
             shutdown_timeout: _,
         } = self;
 
-        // 1. Fold module providers into a container.
+        // 1. Aggregate every input from every source. Plugins
+        //    contribute providers (via register), adapters, core
+        //    modules (transport-agnostic), and contributors. HTTP
+        //    plugins additionally contribute HttpModules.
+
+        // 1a. Modules: user-provided + http_plugin.http_modules().
+        let mut modules: Vec<HttpModule> = modules;
+        for hp in &http_plugins {
+            modules.extend(hp.http_modules());
+        }
+
+        // 1b. Adapters: user-provided + plugin.adapters() for every plugin.
+        let mut adapters: Vec<Arc<dyn Adapter>> = adapters;
+        for p in &plugins {
+            adapters.extend(p.adapters());
+        }
+
+        // 2. Fold module providers into a container.
         let mut builder = Container::builder();
         for m in &modules {
             builder = m.register_into(builder);
         }
+        // Plugin::register() — give plugins a chance to bind their
+        // singletons before container.build() seals the graph.
+        for p in &plugins {
+            p.register(&mut builder)?;
+        }
+        // Plugin::modules() (core transport-agnostic) also contribute
+        // providers — fold them in too.
+        for p in &plugins {
+            for cm in p.modules() {
+                builder = cm.register_into(builder);
+            }
+        }
         let container = builder.build()?;
 
-        // 2. Topo-sort adapters by depends_on.
+        // 3. Topo-sort adapters by depends_on.
         let mount_items: Vec<MountAdapter> = adapters.into_iter().map(MountAdapter::from).collect();
         let sorted = topo_sort(mount_items)?;
         let adapters: Vec<Arc<dyn Adapter>> = sorted.into_iter().map(|m| m.inner).collect();
 
-        // 3. Gather contributors from every source — modules, plugins
-        //    (each plugin returns a `Vec<AnyContributor>` from
-        //    `Plugin::contributors()`), and bootstrap-global. Topo-sort
-        //    once into a single pipeline. Missing/cyclic deps fail boot.
+        // 4. Gather contributors from every source — bootstrap-global,
+        //    modules, plugins, plugin-supplied core modules, and adapters.
+        //    Matches KickJS's 5-level precedence sites
+        //    (method > class > module > adapter > global). Topo-sort
+        //    once. Missing/cyclic deps fail boot.
         let mut contributors = global_contributors;
         for m in &modules {
             contributors.extend(m.collect_contributors());
         }
         for p in &plugins {
             contributors.extend(p.contributors());
+            for cm in p.modules() {
+                contributors.extend(cm.collect_contributors());
+            }
+        }
+        for a in &adapters {
+            contributors.extend(a.contributors());
         }
         let pipeline = Arc::new(crate::ContributorPipeline::build(contributors)?);
 
-        // 4. Build the router.
+        // 5. Build the router.
         let mut router = axum::Router::new();
         for m in modules {
             router = m.mount_onto(router);
@@ -196,6 +254,14 @@ impl Bootstrap {
             }
         }
 
+        // 8b. Plugin::on_ready — post-startup task. Errors are logged
+        //     but never abort serving (matches KickJS `onReady()`).
+        for p in &state.plugins {
+            if let Err(e) = p.on_ready(&state.container).await {
+                tracing::warn!(target: "kick-rs", plugin = %p.name(), error = %e, "on_ready error");
+            }
+        }
+
         let shutdown_signal = async {
             let _ = tokio::signal::ctrl_c().await;
             tracing::info!(target: "kick-rs", "shutdown signal received");
@@ -209,8 +275,10 @@ impl Bootstrap {
                     .with_source(e)
             })?;
 
-        // 9. Cooperative shutdown.
+        // 9. Cooperative shutdown — adapters first (own connection state),
+        //    then plugins (own anything outside an adapter's purview).
         shutdown_adapters(&state.adapters, shutdown_timeout).await;
+        shutdown_plugins(&state.plugins, shutdown_timeout).await;
         Ok(())
     }
 }
@@ -277,6 +345,25 @@ async fn shutdown_adapters(adapters: &[Arc<dyn Adapter>], per_timeout: Duration)
                 Ok(Ok(())) => tracing::info!(target: "kick-rs", adapter = %name, "shut down cleanly"),
                 Ok(Err(e)) => tracing::warn!(target: "kick-rs", adapter = %name, error = %e, "shutdown failed"),
                 Err(_) => tracing::warn!(target: "kick-rs", adapter = %name, "shutdown timed out"),
+            }
+        }
+    });
+    join_all(futures).await;
+}
+
+async fn shutdown_plugins(plugins: &[Arc<dyn Plugin>], per_timeout: Duration) {
+    let futures = plugins.iter().map(|p| {
+        let p = Arc::clone(p);
+        async move {
+            let name = p.name().to_owned();
+            match tokio::time::timeout(per_timeout, p.shutdown()).await {
+                Ok(Ok(())) => {
+                    tracing::info!(target: "kick-rs", plugin = %name, "shut down cleanly")
+                }
+                Ok(Err(e)) => {
+                    tracing::warn!(target: "kick-rs", plugin = %name, error = %e, "shutdown failed")
+                }
+                Err(_) => tracing::warn!(target: "kick-rs", plugin = %name, "shutdown timed out"),
             }
         }
     });
@@ -485,6 +572,96 @@ mod tests {
         assert_eq!(res.status(), StatusCode::OK);
         let body = axum::body::to_bytes(res.into_body(), 64).await.unwrap();
         assert_eq!(&body[..], b"acme");
+    }
+
+    // ── HttpPlugin: full mini-framework in a single package ───────────────
+
+    struct HealthAdapter {
+        log: Arc<std::sync::Mutex<Vec<String>>>,
+    }
+    #[async_trait]
+    impl Adapter for HealthAdapter {
+        fn name(&self) -> &str {
+            "health"
+        }
+        async fn before_start(&self, _: &AdapterContext) -> KickResult<()> {
+            self.log
+                .lock()
+                .unwrap()
+                .push("health:before_start".to_owned());
+            Ok(())
+        }
+    }
+
+    #[derive(Debug, Clone)]
+    struct AppVersion(&'static str);
+
+    struct ReadAppVersion;
+    impl kick_rs_core::ContextContributor for ReadAppVersion {
+        type Key = AppVersion;
+        type Deps = ();
+        async fn resolve<'a>(
+            &'a self,
+            _: &'a dyn ContributorRequest,
+            _: (),
+        ) -> KickResult<AppVersion> {
+            Ok(AppVersion("0.0.0-test"))
+        }
+    }
+
+    async fn health_handler(v: Ctx<AppVersion>) -> String {
+        // Ctx<AppVersion> -> deref -> AppVersion -> .0 -> &'static str.
+        format!("ok {}", (*v).0)
+    }
+
+    struct HealthPlugin {
+        log: Arc<std::sync::Mutex<Vec<String>>>,
+    }
+
+    impl Plugin for HealthPlugin {
+        fn name(&self) -> &str {
+            "health-plugin"
+        }
+        fn contributors(&self) -> Vec<kick_rs_core::AnyContributor> {
+            vec![kick_rs_core::erase_contributor(ReadAppVersion)]
+        }
+        fn adapters(&self) -> Vec<Arc<dyn Adapter>> {
+            vec![Arc::new(HealthAdapter {
+                log: Arc::clone(&self.log),
+            })]
+        }
+    }
+
+    impl crate::HttpPlugin for HealthPlugin {
+        fn http_modules(&self) -> Vec<HttpModule> {
+            vec![define_module("health")
+                .get("/healthz", health_handler)
+                .build()]
+        }
+    }
+
+    #[tokio::test]
+    async fn http_plugin_mounts_route_adapter_and_contributor() {
+        let log: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+        let plugin = HealthPlugin {
+            log: Arc::clone(&log),
+        };
+
+        let (router, state) = bootstrap().http_plugin(plugin).into_router().unwrap();
+
+        // Adapter shipped by the plugin made it through to AppState.
+        let names: Vec<_> = state.adapters.iter().map(|a| a.name().to_owned()).collect();
+        assert_eq!(names, vec!["health"]);
+
+        // Route shipped by the plugin is reachable AND the contributor's
+        // value flows through Ctx<T>.
+        let res = router
+            .oneshot(Request::get("/healthz").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), 64).await.unwrap();
+        assert_eq!(&body[..], b"ok 0.0.0-test");
     }
 
     #[tokio::test]

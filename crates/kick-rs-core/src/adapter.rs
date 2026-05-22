@@ -48,6 +48,19 @@ pub trait Adapter: Send + Sync + 'static {
     async fn shutdown(&self) -> KickResult<()> {
         Ok(())
     }
+
+    /// Context contributors this adapter ships. Aggregated alongside
+    /// module-, plugin-, and bootstrap-level contributors into the
+    /// per-app topo-sorted pipeline at boot.
+    ///
+    /// Adapter-level contributors sit in the four-of-five precedence
+    /// stack from the SPEC: method > class > module > **adapter** >
+    /// global. Useful when the adapter ships a value derived from
+    /// state it owns (e.g. a Postgres adapter exposing the current
+    /// transaction handle as `Ctx<TenantTx>`).
+    fn contributors(&self) -> Vec<crate::AnyContributor> {
+        Vec::new()
+    }
 }
 
 /// Context passed to every adapter hook. Carries a read-side
