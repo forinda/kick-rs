@@ -11,6 +11,15 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.0.3](https://github.com/forinda/kick-rs/compare/kick-rs-v0.0.2...kick-rs-v0.0.3) - 2026-05-22
+
+### Added
+
+- *(core)* contributor error matrix via OnErrorAction
+- *(http)* ModuleList + ModuleRegistry + Bootstrap::setup for conditional mount
+- *(http)* phase-keyword middleware via HttpPlugin::middleware()
+- *(plugins)* plugins ship modules+adapters+lifecycle; HttpPlugin ships routes
+
 ## [0.0.2](https://github.com/forinda/kick-rs/compare/kick-rs-v0.0.1...kick-rs-v0.0.2) - 2026-05-22
 
 ### Added
