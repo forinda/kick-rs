@@ -79,9 +79,35 @@ Flags:
 - `--path <PATH>` — override project-root detection.
 - `--force` — overwrite existing files inside the module directory.
 
+### `cargo kick g service <module>/<name>`
+
+Generates a `#[service]`-derived stub inside an existing module:
+
+```bash
+cd my-app
+cargo kick g service users/email_sender
+# ✓ generated service at .../src/modules/users/email_sender.rs
+#   next: in src/modules/users/mod.rs, add
+#         use email_sender::EmailSender;
+#         ...
+#         .service::<EmailSender>()
+```
+
+Emits `src/modules/<module>/<name>.rs` containing a `#[service]`
+struct (PascalCase derived from the snake_case file name) and
+idempotently appends `pub mod <name>;` to that module's `mod.rs`.
+
+Both halves of the spec must be valid snake_case identifiers. The
+parent module must already exist (use `g module` first).
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--force` — overwrite the service file if it already exists.
+
 ## Status
 
-`new` and `g module` today. Planned: `g service`, `g contributor`,
+`new`, `g module`, `g service` today. Planned: `g contributor`,
 `dev`, `add`, `info`, `check`.
 
 ## License

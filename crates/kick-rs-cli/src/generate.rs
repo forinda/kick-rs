@@ -1,9 +1,12 @@
 //! `cargo kick g` — codegen into an existing kick-rs project.
 //!
-//! Currently ships one generator:
+//! Currently ships:
 //!
 //! - `g module <name>` — emit `src/modules/<name>/{mod.rs,handlers.rs}`
 //!   and append `pub mod <name>;` to `src/modules/mod.rs`.
+//! - `g service <module>/<name>` — emit
+//!   `src/modules/<module>/<name>.rs` containing a `#[service]`-derived
+//!   stub, and append `pub mod <name>;` to the parent module's `mod.rs`.
 //!
 //! Project root is auto-detected by walking up from `cwd` until we
 //! find a directory containing `src/modules/mod.rs`. That single
@@ -30,8 +33,11 @@ pub struct GenerateModuleArgs {
 #[derive(Debug)]
 pub enum GenerateError {
     InvalidName(String),
+    InvalidSpec(String),
     ProjectRootNotFound(PathBuf),
     ModuleExists(PathBuf),
+    ModuleMissing(PathBuf),
+    FileExists(PathBuf),
     Io { path: PathBuf, source: io::Error },
 }
 
@@ -40,7 +46,11 @@ impl std::fmt::Display for GenerateError {
         match self {
             Self::InvalidName(n) => write!(
                 f,
-                "`{n}` is not a valid module name. Use lowercase letters, digits, and underscores only (and start with a letter)."
+                "`{n}` is not a valid name. Use lowercase letters, digits, and underscores only (and start with a letter)."
+            ),
+            Self::InvalidSpec(s) => write!(
+                f,
+                "`{s}` is not a valid spec. Expected `<module>/<service_name>` (e.g. `users/email_sender`)."
             ),
             Self::ProjectRootNotFound(start) => write!(
                 f,
@@ -50,6 +60,16 @@ impl std::fmt::Display for GenerateError {
             Self::ModuleExists(p) => write!(
                 f,
                 "module directory `{}` already exists. Re-run with --force to overwrite the files inside.",
+                p.display()
+            ),
+            Self::ModuleMissing(p) => write!(
+                f,
+                "parent module `{}` does not exist. Generate it first with `cargo kick g module`.",
+                p.display()
+            ),
+            Self::FileExists(p) => write!(
+                f,
+                "file `{}` already exists. Re-run with --force to overwrite.",
                 p.display()
             ),
             Self::Io { path, source } => write!(f, "I/O error at `{}`: {source}", path.display()),
@@ -122,6 +142,32 @@ pub fn find_project_root(start: &Path) -> Result<PathBuf, GenerateError> {
 const MOD_TMPL: &str = include_str!("../templates/generate/module/mod.rs.tmpl");
 const HANDLERS_TMPL: &str = include_str!("../templates/generate/module/handlers.rs.tmpl");
 
+/// Service skeleton: 1 file.
+const SERVICE_TMPL: &str = include_str!("../templates/generate/service/file.rs.tmpl");
+
+/// Convert a snake_case identifier to PascalCase. Used to derive the
+/// service struct name from its file name (`email_sender` → `EmailSender`).
+///
+/// Assumes the input has already been validated as a snake_case
+/// identifier (no leading digits, no hyphens, etc).
+pub fn to_pascal_case(snake: &str) -> String {
+    let mut out = String::with_capacity(snake.len());
+    let mut upper_next = true;
+    for c in snake.chars() {
+        if c == '_' {
+            upper_next = true;
+            continue;
+        }
+        if upper_next {
+            out.extend(c.to_uppercase());
+            upper_next = false;
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn render(template: &str, name: &str) -> String {
     template
         // module_name_snake is the same as module_name today (hyphens
@@ -129,6 +175,12 @@ fn render(template: &str, name: &str) -> String {
         // are self-documenting about the intent.
         .replace("{{module_name_snake}}", name)
         .replace("{{module_name}}", name)
+}
+
+fn render_service(template: &str, snake: &str, pascal: &str) -> String {
+    template
+        .replace("{{service_snake}}", snake)
+        .replace("{{service_pascal}}", pascal)
 }
 
 /// Run the `g module <name>` flow.
@@ -164,28 +216,97 @@ pub fn generate_module(args: &GenerateModuleArgs) -> Result<PathBuf, GenerateErr
         source: e,
     })?;
 
-    // Idempotently append `pub mod <name>;` to src/modules/mod.rs.
     let modules_mod = root.join("src/modules/mod.rs");
-    let mut contents = fs::read_to_string(&modules_mod).map_err(|e| GenerateError::Io {
-        path: modules_mod.clone(),
-        source: e,
-    })?;
-    let decl = format!("pub mod {};", args.name);
-    if !contents.lines().any(|line| line.trim() == decl) {
-        // Make sure we land on a newline before appending so we don't
-        // glue onto a no-trailing-newline file.
-        if !contents.ends_with('\n') {
-            contents.push('\n');
-        }
-        contents.push_str(&decl);
-        contents.push('\n');
-        fs::write(&modules_mod, contents).map_err(|e| GenerateError::Io {
-            path: modules_mod.clone(),
-            source: e,
-        })?;
-    }
+    ensure_pub_mod_line(&modules_mod, &args.name)?;
 
     Ok(module_dir)
+}
+
+/// Idempotently append `pub mod <name>;` to `target` if it isn't
+/// already present (line-equality match, ignoring leading/trailing
+/// whitespace).
+fn ensure_pub_mod_line(target: &Path, name: &str) -> Result<(), GenerateError> {
+    let mut contents = fs::read_to_string(target).map_err(|e| GenerateError::Io {
+        path: target.to_path_buf(),
+        source: e,
+    })?;
+    let decl = format!("pub mod {name};");
+    if contents.lines().any(|line| line.trim() == decl) {
+        return Ok(());
+    }
+    if !contents.ends_with('\n') {
+        contents.push('\n');
+    }
+    contents.push_str(&decl);
+    contents.push('\n');
+    fs::write(target, contents).map_err(|e| GenerateError::Io {
+        path: target.to_path_buf(),
+        source: e,
+    })
+}
+
+// ─────────────────────────── g service ───────────────────────────────
+
+/// Decoded form of the `g service` subcommand.
+pub struct GenerateServiceArgs {
+    /// `<module>/<service_snake>` spec.
+    pub spec: String,
+    /// Override the project root.
+    pub project_root: Option<PathBuf>,
+    /// Overwrite the service file if it already exists.
+    pub force: bool,
+}
+
+/// Split `<module>/<service_snake>` and validate each half.
+fn parse_service_spec(spec: &str) -> Result<(&str, &str), GenerateError> {
+    let (module, service) = spec
+        .split_once('/')
+        .ok_or_else(|| GenerateError::InvalidSpec(spec.to_owned()))?;
+    if module.is_empty() || service.is_empty() {
+        return Err(GenerateError::InvalidSpec(spec.to_owned()));
+    }
+    if service.contains('/') {
+        return Err(GenerateError::InvalidSpec(spec.to_owned()));
+    }
+    validate_module_name(module)?;
+    validate_module_name(service)?;
+    Ok((module, service))
+}
+
+/// Run the `g service <module>/<service_snake>` flow. Returns the
+/// path that was written.
+pub fn generate_service(args: &GenerateServiceArgs) -> Result<PathBuf, GenerateError> {
+    let (module, service_snake) = parse_service_spec(&args.spec)?;
+    let service_pascal = to_pascal_case(service_snake);
+
+    let root = match &args.project_root {
+        Some(p) => p.clone(),
+        None => find_project_root(Path::new("."))?,
+    };
+    let module_mod_rs = root.join("src/modules").join(module).join("mod.rs");
+    if !module_mod_rs.is_file() {
+        return Err(GenerateError::ModuleMissing(
+            root.join("src/modules").join(module),
+        ));
+    }
+
+    let service_file = root
+        .join("src/modules")
+        .join(module)
+        .join(format!("{service_snake}.rs"));
+    if service_file.exists() && !args.force {
+        return Err(GenerateError::FileExists(service_file));
+    }
+
+    let rendered = render_service(SERVICE_TMPL, service_snake, &service_pascal);
+    fs::write(&service_file, rendered).map_err(|e| GenerateError::Io {
+        path: service_file.clone(),
+        source: e,
+    })?;
+
+    ensure_pub_mod_line(&module_mod_rs, service_snake)?;
+
+    Ok(service_file)
 }
 
 #[cfg(test)]
@@ -309,5 +430,171 @@ mod tests {
         })
         .unwrap_err();
         assert!(matches!(err, GenerateError::ModuleExists(_)), "got {err:?}");
+    }
+
+    // ─────────────────── g service ───────────────────
+
+    #[test]
+    fn to_pascal_case_converts_snake() {
+        assert_eq!(to_pascal_case("email"), "Email");
+        assert_eq!(to_pascal_case("email_sender"), "EmailSender");
+        assert_eq!(to_pascal_case("user_repository"), "UserRepository");
+        assert_eq!(to_pascal_case("v1_handler"), "V1Handler");
+        // Empty + degenerate inputs preserved (validation lives upstream).
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    #[test]
+    fn parse_service_spec_splits_module_and_name() {
+        assert_eq!(
+            parse_service_spec("users/email").unwrap(),
+            ("users", "email")
+        );
+        assert_eq!(
+            parse_service_spec("users/email_sender").unwrap(),
+            ("users", "email_sender")
+        );
+    }
+
+    #[test]
+    fn parse_service_spec_rejects_bad_shapes() {
+        // No slash
+        assert!(matches!(
+            parse_service_spec("emailsender").unwrap_err(),
+            GenerateError::InvalidSpec(_)
+        ));
+        // Empty halves
+        assert!(matches!(
+            parse_service_spec("/email").unwrap_err(),
+            GenerateError::InvalidSpec(_)
+        ));
+        assert!(matches!(
+            parse_service_spec("users/").unwrap_err(),
+            GenerateError::InvalidSpec(_)
+        ));
+        // Nested slashes — we only support one-level nesting today.
+        assert!(matches!(
+            parse_service_spec("users/sub/email").unwrap_err(),
+            GenerateError::InvalidSpec(_)
+        ));
+        // Bad identifier on either side cascades to InvalidName.
+        assert!(matches!(
+            parse_service_spec("Users/email").unwrap_err(),
+            GenerateError::InvalidName(_)
+        ));
+        assert!(matches!(
+            parse_service_spec("users/Email").unwrap_err(),
+            GenerateError::InvalidName(_)
+        ));
+    }
+
+    fn make_skeleton_with_module(dir: &Path, module: &str) {
+        make_skeleton(dir);
+        fs::create_dir_all(dir.join("src/modules").join(module)).unwrap();
+        fs::write(
+            dir.join("src/modules").join(module).join("mod.rs"),
+            format!("//! {module}\npub mod handlers;\n"),
+        )
+        .unwrap();
+        // Append the module to the top-level mod.rs so it'd compile,
+        // though the codegen here doesn't actually need this.
+        let decl = format!("pub mod {module};\n");
+        let mut top = fs::read_to_string(dir.join("src/modules/mod.rs")).unwrap();
+        top.push_str(&decl);
+        fs::write(dir.join("src/modules/mod.rs"), top).unwrap();
+    }
+
+    #[test]
+    fn generate_service_writes_file_and_appends_module_mod() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+
+        let written = generate_service(&GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap();
+
+        assert_eq!(written, root.join("src/modules/users/email_sender.rs"),);
+
+        let body = fs::read_to_string(&written).unwrap();
+        assert!(body.contains("pub struct EmailSender"));
+        assert!(body.contains(r#""email_sender ready""#));
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert_eq!(
+            mod_rs.matches("pub mod email_sender;").count(),
+            1,
+            "expected one append in module mod.rs: {mod_rs}"
+        );
+    }
+
+    #[test]
+    fn generate_service_refuses_when_parent_module_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton(&root);
+        // No `users` module — only the default hello one from make_skeleton.
+
+        let err = generate_service(&GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap_err();
+        assert!(
+            matches!(err, GenerateError::ModuleMissing(_)),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn generate_service_refuses_existing_file_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+        fs::write(
+            root.join("src/modules/users/email_sender.rs"),
+            "// user wrote this",
+        )
+        .unwrap();
+
+        let err = generate_service(&GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap_err();
+        assert!(matches!(err, GenerateError::FileExists(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn generate_service_force_overwrites_but_append_stays_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+
+        let args = GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        };
+        generate_service(&args).unwrap();
+
+        let force_args = GenerateServiceArgs {
+            spec: "users/email_sender".into(),
+            project_root: Some(root.clone()),
+            force: true,
+        };
+        generate_service(&force_args).unwrap();
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert_eq!(
+            mod_rs.matches("pub mod email_sender;").count(),
+            1,
+            "double-append on second generate: {mod_rs}"
+        );
     }
 }
