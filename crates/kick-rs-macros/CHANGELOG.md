@@ -9,3 +9,13 @@ Maintained automatically by [release-plz](https://release-plz.dev) from
 Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
+
+## [0.0.0](https://github.com/forinda/kick-rs/releases/tag/kick-rs-macros-v0.0.0) - 2026-05-22
+
+### Added
+
+- *(macros)* #[service] proc-macro + ServiceImpl trait
+
+### Other
+
+- [**breaking**] rename project to kick-rs (umbrella + all sub-crates)
