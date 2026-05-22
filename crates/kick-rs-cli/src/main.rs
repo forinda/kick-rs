@@ -5,9 +5,10 @@
 //! - `g module <name>`                          — generate a module skeleton
 //! - `g service <module>/<service_name>`        — generate a `#[service]`-derived stub
 //! - `g contributor <module>/<contributor>`     — generate a `#[contributor]` async fn
+//! - `add <feature>`                            — toggle an opt-in `kick-rs` feature in Cargo.toml
 //!
-//! Future subcommands (`dev`, `add`, `info`, `check`) land in later
-//! phases; see SPEC.md §7.
+//! Future subcommands (`dev`, `info`, `check`) land in later phases;
+//! see SPEC.md §7.
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
 //! invoking `cargo kick <args>` runs us with `args[1] == "kick"`. We
@@ -15,7 +16,7 @@
 
 use clap::{Parser, Subcommand};
 use kick_rs_cli::register::RegisterOutcome;
-use kick_rs_cli::{generate, new};
+use kick_rs_cli::{add, generate, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -55,6 +56,22 @@ enum Command {
     Generate {
         #[command(subcommand)]
         kind: Generate,
+    },
+
+    /// Toggle an opt-in `kick-rs` feature on the umbrella dep in
+    /// Cargo.toml. Pass `list` to print the known features.
+    Add {
+        /// Feature to enable. Pass `list` to print known features and exit.
+        feature: String,
+
+        /// Override the project root.
+        #[arg(long)]
+        path: Option<PathBuf>,
+
+        /// Dependency name to mutate (defaults to `kick-rs`). Useful
+        /// when you've renamed the umbrella in a workspace.
+        #[arg(long, default_value = "kick-rs")]
+        dep_name: String,
     },
 }
 
@@ -255,6 +272,40 @@ fn main() -> ExitCode {
                             "use {snake}::{pascal};\n        ...\n        .contribute({pascal})"
                         ),
                     );
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Add {
+            feature,
+            path,
+            dep_name,
+        } => {
+            // `add list` is a help shortcut — print the catalog and exit.
+            if feature == "list" {
+                println!("kick-rs features that `cargo kick add` knows about:");
+                for (name, desc) in add::KNOWN_FEATURES {
+                    println!("  {name:10} — {desc}");
+                }
+                return ExitCode::SUCCESS;
+            }
+
+            let args = add::AddArgs {
+                feature: feature.clone(),
+                project_root: path,
+                dep_name: dep_name.clone(),
+            };
+            match add::add_feature(&args) {
+                Ok(add::AddOutcome::Added) => {
+                    println!("✓ added `{feature}` to {dep_name} features in Cargo.toml");
+                    ExitCode::SUCCESS
+                }
+                Ok(add::AddOutcome::AlreadyEnabled) => {
+                    println!("· `{feature}` already enabled on {dep_name}");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {

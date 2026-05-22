@@ -150,10 +150,41 @@ snippet to paste and leaves the file untouched.
 Each `g` subcommand accepts a `--no-register` flag to skip the
 insertion if you'd rather wire things up yourself.
 
+### `cargo kick add <feature>`
+
+Toggle an opt-in `kick-rs` feature on the umbrella dep in your
+project's `Cargo.toml`:
+
+```bash
+cargo kick add openapi
+# ✓ added `openapi` to kick-rs features in Cargo.toml
+
+cargo kick add openapi
+# · `openapi` already enabled on kick-rs
+
+cargo kick add list
+# kick-rs features that `cargo kick add` knows about:
+#   macros     — `#[service]`, `#[contributor]`, `#[get]`/`#[post]`/...
+#   config     — Layered env / dotenv / TOML / JSON config loader
+#   openapi    — OpenApiPlugin + paths!() — serve /openapi.json
+#   devtools   — /__debug introspection endpoint (also needs .with_devtools())
+```
+
+The mutation uses `toml_edit` so the rest of your Cargo.toml
+(comments, alignment, key order) is left untouched. A bare
+`kick-rs = "0.1"` is promoted to the inline-table form
+`kick-rs = { version = "0.1", features = ["..."] }` so the
+features array has a place to live.
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--dep-name <NAME>` — mutate a differently-named dep (rare; defaults to `kick-rs`).
+
 ## Status
 
-`new`, `g module`, `g service`, `g contributor` today (with
-auto-registration). Planned: `dev`, `add`, `info`, `check`.
+`new`, `g module`, `g service`, `g contributor`, `add` today (with
+auto-registration on the generators). Planned: `dev`, `info`, `check`.
 
 ## License
 
