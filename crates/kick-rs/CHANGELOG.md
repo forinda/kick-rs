@@ -11,6 +11,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.4](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.3...kick-rs-v0.1.0-alpha.4) - 2026-05-22
+
+### Added
+
+- *(assets)* real AssetManifest + embed_assets! macro
+
 ## [0.1.0-alpha.3](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.2...kick-rs-v0.1.0-alpha.3) - 2026-05-22
 
 ### Other
