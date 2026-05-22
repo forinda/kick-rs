@@ -60,6 +60,14 @@ pub use kick_rs_macros::*;
 #[doc(hidden)]
 pub use kick_rs_http as __http;
 
+// ── Opt-in OpenAPI integration (feature = "openapi") ───────────────────
+//
+// Surface `kick_rs_http::openapi` cleanly so adopters write
+// `kick_rs::openapi::OpenApiPlugin::from_modules(...)` rather than
+// reaching into the doc-hidden umbrella alias.
+#[cfg(feature = "openapi")]
+pub use kick_rs_http::openapi;
+
 // ── Opt-in config loader (feature = "config") ──────────────────────────
 //
 // Layered env / dotenv / TOML / JSON loader. Exposes the entire

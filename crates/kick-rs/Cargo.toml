@@ -21,6 +21,11 @@ macros = ["dep:kick-rs-macros"]
 # read env vars themselves don't need the `toml` dep.
 config = ["dep:kick-rs-config"]
 
+# Enables OpenAPI integration on `kick-rs-http` (the `OpenApiPlugin` +
+# `HttpModuleBuilder::openapi_path` + `openapi_paths` + the `paths!`
+# macro path resolution). Opt-in because it pulls in `utoipa`.
+openapi = ["kick-rs-http/openapi"]
+
 # `assets` is still parked — lands once `kick-rs-assets` reaches
 # publish-ready state. Adopters needing it early can depend on the
 # crate directly.

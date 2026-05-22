@@ -7,7 +7,9 @@
 //!    `migrations/` directory into the binary at compile time)
 //! 4. Hand the pool to kick-rs as a DI singleton via a small infra
 //!    module
-//! 5. Mount the `users` module and listen
+//! 5. Mount the `users` module + an `OpenApiPlugin` that serves
+//!    `/openapi.json` (auto-collected from the module's `paths!(...)`
+//!    registrations) and listen
 //!
 //! Run:
 //! ```text
@@ -20,9 +22,11 @@ mod config;
 mod modules;
 
 use config::Env;
+use kick_rs::openapi::OpenApiPlugin;
 use kick_rs::{bootstrap, define_module, KickError, KickResult, Module};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+use utoipa::openapi::InfoBuilder;
 
 #[tokio::main]
 async fn main() -> KickResult<()> {
@@ -34,9 +38,22 @@ async fn main() -> KickResult<()> {
     let pool = open_pool(&env.database_url).await?;
     run_migrations(&pool).await?;
 
+    // The users module owns its own utoipa paths — `OpenApiPlugin`
+    // walks them and serves /openapi.json. Build the module first so
+    // we can reference it before moving it into bootstrap().
+    let users = modules::users::define();
+    let openapi_plugin = OpenApiPlugin::from_modules(
+        InfoBuilder::new()
+            .title("users-api")
+            .version(env!("CARGO_PKG_VERSION"))
+            .build(),
+        [&users],
+    );
+
     bootstrap()
         .module(infra_module(pool))
-        .module(modules::users::define())
+        .http_plugin(openapi_plugin)
+        .module(users)
         .listen(&env.bind_addr)
         .await
 }
