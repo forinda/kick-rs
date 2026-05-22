@@ -39,9 +39,12 @@ allow_dirty = false
 
 # ── Per-crate overrides ──────────────────────────────────────────────────
 #
-# Phase-1 releasable crates: kick-rs-core, kick-rs-http, kick-rs (umbrella).
-# Everything else is a placeholder (todo!() bodies, no public surface ready)
-# — gated off until each one actually does something.
+# Releasable crates: every crate whose Cargo.toml does NOT carry
+# `publish = false`. As of now: kick-rs-core, kick-rs-http, kick-rs
+# (umbrella), kick-rs-macros, kick-rs-config (Phase 9), kick-rs-cli
+# (Phase 10). The order matters: the umbrella `kick-rs` depends on
+# kick-rs-config via an optional feature, so kick-rs-config must reach
+# crates.io before the umbrella can publish a version that names it.
 
 [[package]]
 name = "kick-rs-core"
@@ -52,32 +55,29 @@ name = "kick-rs-http"
 git_tag_name = "kick-rs-http-v{{ version }}"
 
 [[package]]
-name = "kick-rs"
-git_tag_name = "kick-rs-v{{ version }}"
-
-[[package]]
 name = "kick-rs-macros"
 git_tag_name = "kick-rs-macros-v{{ version }}"
 
-# ── Gated (placeholders, not yet ready to publish) ───────────────────────
-#
-# These crates carry `publish = false` in their Cargo.toml. release-plz
-# requires both fields to match — Cargo.toml says "don't publish",
-# release-plz config must explicitly acknowledge that. Otherwise the
-# `release-publish` job aborts with a config-mismatch error before doing
-# anything useful.
-
 [[package]]
 name = "kick-rs-config"
-release = false              # Phase 5 — flip when env loader lands
-publish = false              # mirrors crates/kick-rs-config/Cargo.toml
-
-[[package]]
-name = "kick-rs-assets"
-release = false              # Phase 5 — flip when asset manifest lands
-publish = false              # mirrors crates/kick-rs-assets/Cargo.toml
+git_tag_name = "kick-rs-config-v{{ version }}"
 
 [[package]]
 name = "kick-rs-cli"
-release = false              # Phase 5 — flip when CLI lands
-publish = false              # mirrors crates/kick-rs-cli/Cargo.toml
+git_tag_name = "kick-rs-cli-v{{ version }}"
+
+[[package]]
+name = "kick-rs"
+git_tag_name = "kick-rs-v{{ version }}"
+
+# ── Gated (placeholders, not yet ready to publish) ───────────────────────
+#
+# Cargo.toml carries `publish = false`; release-plz requires both
+# fields to match — Cargo.toml says "don't publish", release-plz config
+# must explicitly acknowledge that. Otherwise the `release-publish`
+# job aborts with a config-mismatch error.
+
+[[package]]
+name = "kick-rs-assets"
+release = false              # Flip when asset manifest lands
+publish = false              # mirrors crates/kick-rs-assets/Cargo.toml
