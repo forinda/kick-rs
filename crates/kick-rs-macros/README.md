@@ -62,6 +62,55 @@ The macro resolves the trait path at expansion time via
 works whether you import via the umbrella `kick-rs` or
 [`kick-rs-core`](https://crates.io/crates/kick-rs-core) directly.
 
+## `#[contributor]`
+
+Function-style sugar that turns an `async fn` into a
+[`ContextContributor`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ContextContributor.html)
+unit struct. Parallel in spirit to `#[service]`, but for the request-
+context pipeline.
+
+```rust
+use kick_rs::{contributor, ContributorRequest, ContributorRequestExt, KickResult};
+
+#[contributor]
+async fn LoadTenant() -> KickResult<Tenant> {
+    Ok(Tenant { id: 42 })
+}
+
+#[contributor]
+async fn LoadProject(tenant: &Tenant) -> KickResult<Project> {
+    Ok(Project { tenant_id: tenant.id })
+}
+
+#[contributor]
+async fn LoadTenantDb(
+    ctx: &dyn ContributorRequest,    // optional — gives access to DI
+    tenant: &Tenant,
+) -> KickResult<TenantDb> {
+    let cfg = ctx.inject::<TenantConfig>();
+    Ok(TenantDb::for_tenant(&tenant.slug, cfg.pool_size).await?)
+}
+```
+
+Rules:
+
+| Function shape                                       | Generated `Deps` |
+|------------------------------------------------------|------------------|
+| `async fn X() -> KickResult<T>`                      | `()`             |
+| `async fn X(a: &A) -> KickResult<T>`                 | `(A,)`           |
+| `async fn X(a: &A, b: &B) -> KickResult<T>`          | `(A, B)`         |
+| `async fn X(ctx: &dyn ContributorRequest, a: &A, …)` | `(A, …)` — ctx threaded in |
+
+- Must be `async fn`.
+- Return type must be `KickResult<KeyType>` — the inner type becomes `Key`.
+- First parameter may be named `ctx` (or `_ctx`) with type
+  `&dyn ContributorRequest` to access DI inside the body.
+- Remaining `&T` parameters become `Deps` in declaration order.
+- Stateful contributors (those holding fields) still need a manual
+  `impl ContextContributor` — this macro only covers unit-struct.
+
+Use PascalCase function names — they become the generated struct.
+
 ## `#[handler]`
 
 Currently a pass-through placeholder. Reserved for future codegen

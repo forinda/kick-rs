@@ -192,12 +192,19 @@ impl Bootstrap {
         for m in modules {
             router = m.mount_onto(router);
         }
-        router = router.layer(Extension(container.clone()));
 
-        // 5. Install the contributor middleware *after* the Extension
-        //    layer so the pipeline can read from the container if it
-        //    ever needs to (today: never, but layers apply
-        //    outermost-first in axum).
+        // 5a. Install the contributor middleware FIRST so it ends up
+        //     INNER in axum's layer stack. axum applies the last-added
+        //     layer as the outermost wrapper, so on the request path:
+        //         Extension(Container)  ← outermost (inserts container)
+        //             ↓
+        //         contributors_middleware  ← sees container in extensions,
+        //                                    runs pipeline, inserts store
+        //             ↓
+        //         handler  ← sees both
+        //     Reversing the order would have the middleware fire before
+        //     the Extension inserts the container — which is exactly the
+        //     bug that produced 500s before this swap landed.
         if !pipeline.is_empty() {
             let pipeline_for_layer = Arc::clone(&pipeline);
             router = router.layer(axum::middleware::from_fn(move |req, next| {
@@ -205,6 +212,11 @@ impl Bootstrap {
                 async move { crate::contributors_middleware(p, req, next).await }
             }));
         }
+
+        // 5b. Install Extension(Container) LAST so it wraps outermost
+        //     and the container is in request extensions before the
+        //     contributors middleware needs it.
+        router = router.layer(Extension(container.clone()));
 
         Ok((
             router,

@@ -19,7 +19,10 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_crate::{crate_name, FoundCrate};
 use quote::{format_ident, quote};
-use syn::{parse_macro_input, Data, DeriveInput, Fields, GenericArgument, PathArguments, Type};
+use syn::{
+    parse_macro_input, Data, DeriveInput, Fields, FnArg, GenericArgument, ItemFn, Pat,
+    PathArguments, ReturnType, Type, TypeReference,
+};
 
 /// Annotate a struct to auto-derive
 /// [`ServiceImpl`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ServiceImpl.html).
@@ -151,6 +154,236 @@ fn path_for(found: FoundCrate) -> TokenStream2 {
             quote! { ::#ident }
         }
     }
+}
+
+/// Annotate an `async fn` to auto-derive
+/// [`ContextContributor`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ContextContributor.html)
+/// on a unit struct of the same name.
+///
+/// Function-style sugar over the trait impl:
+///
+/// ```ignore
+/// #[contributor]
+/// async fn LoadTenant() -> KickResult<Tenant> {
+///     Ok(Tenant { id: 42 })
+/// }
+///
+/// #[contributor]
+/// async fn LoadProject(tenant: &Tenant) -> KickResult<Project> {
+///     Ok(Project { tenant_id: tenant.id })
+/// }
+///
+/// #[contributor]
+/// async fn LoadTenantDb(
+///     ctx: &dyn ContributorRequest,
+///     tenant: &Tenant,
+/// ) -> KickResult<TenantDb> {
+///     let cfg = ctx.inject::<TenantConfig>();
+///     Ok(TenantDb::for_tenant(&tenant.slug, cfg.pool_size).await?)
+/// }
+/// ```
+///
+/// Rules:
+/// - Must be an `async fn`.
+/// - Return type must be `KickResult<KeyType>` (the inner type becomes
+///   the `Key` associated type).
+/// - First parameter may optionally be named `ctx` with type
+///   `&dyn ContributorRequest`; that lets you call `ctx.inject::<T>()`
+///   inside the body.
+/// - Remaining parameters of the form `name: &T` become the `Deps`
+///   tuple in declaration order.
+/// - Anything else is a compile error.
+///
+/// The function name is used verbatim as the generated struct name —
+/// stick to PascalCase (`LoadTenant`, not `load_tenant`) for idiomatic
+/// Rust. The function visibility (`pub`, `pub(crate)`, default) carries
+/// through to the struct.
+///
+/// Stateful contributors (those holding fields) still need the manual
+/// `impl ContextContributor` form — this macro only covers the
+/// unit-struct case.
+#[proc_macro_attribute]
+pub fn contributor(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(item as ItemFn);
+
+    // Must be async.
+    if input.sig.asyncness.is_none() {
+        return syn::Error::new_spanned(
+            input.sig.fn_token,
+            "`#[contributor]` requires an `async fn`",
+        )
+        .to_compile_error()
+        .into();
+    }
+    // No generics/where for now — keeps things tractable.
+    if !input.sig.generics.params.is_empty() || input.sig.generics.where_clause.is_some() {
+        return syn::Error::new_spanned(
+            input.sig.generics.clone(),
+            "`#[contributor]` does not yet support generic functions",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // Return type must be KickResult<Key>.
+    let key_type = match extract_kick_result_inner(&input.sig.output) {
+        Ok(ty) => ty,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
+    // Parse params: optional ctx + zero-or-more `&T` deps.
+    let (ctx_pat, dep_idents, dep_inner_types) = match parse_contributor_params(&input.sig.inputs) {
+        Ok(triple) => triple,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
+    let kick_path = resolve_kick_path();
+    let trait_path = quote! { #kick_path::ContextContributor };
+    let req_path = quote! { #kick_path::ContributorRequest };
+    let deps_path = quote! { #kick_path::ContributorDeps };
+    let result_path = quote! { #kick_path::KickResult };
+
+    let struct_name = &input.sig.ident;
+    let vis = &input.vis;
+    let attrs = &input.attrs;
+    let body = &input.block;
+
+    let deps_tuple_ty: TokenStream2 = if dep_inner_types.is_empty() {
+        quote! { () }
+    } else {
+        quote! { ( #( #dep_inner_types, )* ) }
+    };
+    let deps_pat: TokenStream2 = if dep_idents.is_empty() {
+        quote! { _ }
+    } else {
+        quote! { ( #( #dep_idents, )* ) }
+    };
+
+    let expanded = quote! {
+        #(#attrs)*
+        #vis struct #struct_name;
+
+        #[automatically_derived]
+        impl #trait_path for #struct_name {
+            type Key = #key_type;
+            type Deps = #deps_tuple_ty;
+
+            async fn resolve<'a>(
+                &'a self,
+                #ctx_pat: &'a (dyn #req_path + 'a),
+                #deps_pat: <Self::Deps as #deps_path>::Resolved<'a>,
+            ) -> #result_path<Self::Key> #body
+        }
+    };
+
+    expanded.into()
+}
+
+/// Extract `T` from a return type of the form `KickResult<T>`.
+fn extract_kick_result_inner(rt: &ReturnType) -> Result<Type, syn::Error> {
+    let ty = match rt {
+        ReturnType::Default => {
+            return Err(syn::Error::new_spanned(
+                rt,
+                "`#[contributor]` requires a return type of `KickResult<Key>`",
+            ));
+        }
+        ReturnType::Type(_, ty) => ty.as_ref(),
+    };
+
+    let Type::Path(p) = ty else {
+        return Err(syn::Error::new_spanned(
+            ty,
+            "`#[contributor]` return must be `KickResult<Key>`",
+        ));
+    };
+    let last = p
+        .path
+        .segments
+        .last()
+        .ok_or_else(|| syn::Error::new_spanned(ty, "empty return type path"))?;
+    if last.ident != "KickResult" {
+        return Err(syn::Error::new_spanned(
+            ty,
+            "`#[contributor]` return must be `KickResult<Key>`",
+        ));
+    }
+    let PathArguments::AngleBracketed(args) = &last.arguments else {
+        return Err(syn::Error::new_spanned(
+            ty,
+            "`KickResult` requires one type argument",
+        ));
+    };
+    let arg = args
+        .args
+        .iter()
+        .find_map(|a| match a {
+            GenericArgument::Type(t) => Some(t.clone()),
+            _ => None,
+        })
+        .ok_or_else(|| {
+            syn::Error::new_spanned(ty, "`KickResult<...>` needs a concrete type argument")
+        })?;
+    Ok(arg)
+}
+
+/// Parse the function args.
+///
+/// Returns:
+/// - `ctx_pat`: the binding pattern to use for the `ctx` parameter
+///   (`ctx` if the user took it, `_ctx` otherwise).
+/// - `dep_idents`: the names of the dep parameters, in declaration
+///   order.
+/// - `dep_inner_types`: the inner `T` of each `&T` dep parameter.
+fn parse_contributor_params(
+    inputs: &syn::punctuated::Punctuated<FnArg, syn::Token![,]>,
+) -> Result<(TokenStream2, Vec<syn::Ident>, Vec<Type>), syn::Error> {
+    let mut ctx_pat: Option<TokenStream2> = None;
+    let mut dep_idents: Vec<syn::Ident> = Vec::new();
+    let mut dep_inner_types: Vec<Type> = Vec::new();
+
+    for (i, arg) in inputs.iter().enumerate() {
+        let FnArg::Typed(pat_ty) = arg else {
+            return Err(syn::Error::new_spanned(
+                arg,
+                "`#[contributor]` functions cannot take `self`",
+            ));
+        };
+
+        let Pat::Ident(pat_ident) = pat_ty.pat.as_ref() else {
+            return Err(syn::Error::new_spanned(
+                &pat_ty.pat,
+                "`#[contributor]` parameters must be plain identifiers",
+            ));
+        };
+        let ident = &pat_ident.ident;
+
+        // Check whether this is the special `ctx` arg.
+        if i == 0 && (ident == "ctx" || ident == "_ctx") {
+            // Validate the type looks plausible — bare `&_` is fine.
+            if !matches!(pat_ty.ty.as_ref(), Type::Reference(_)) {
+                return Err(syn::Error::new_spanned(
+                    &pat_ty.ty,
+                    "the `ctx` parameter must be `&dyn ContributorRequest`",
+                ));
+            }
+            ctx_pat = Some(quote! { #ident });
+            continue;
+        }
+
+        // Otherwise: dep parameter. Type must be `&T`.
+        let Type::Reference(TypeReference { elem, .. }) = pat_ty.ty.as_ref() else {
+            return Err(syn::Error::new_spanned(
+                &pat_ty.ty,
+                "`#[contributor]` dep parameters must be `&Type`",
+            ));
+        };
+        dep_idents.push(ident.clone());
+        dep_inner_types.push((**elem).clone());
+    }
+
+    let ctx_pat = ctx_pat.unwrap_or_else(|| quote! { _ctx });
+    Ok((ctx_pat, dep_idents, dep_inner_types))
 }
 
 /// `#[handler]` — placeholder for future codegen.
