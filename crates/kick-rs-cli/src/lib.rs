@@ -8,6 +8,7 @@
 #![forbid(unsafe_code)]
 #![warn(rust_2018_idioms)]
 
+pub mod add;
 pub mod generate;
 pub mod new;
 pub mod register;

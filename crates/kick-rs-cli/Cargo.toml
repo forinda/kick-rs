@@ -16,7 +16,11 @@ name = "cargo-kick"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap      = { version = "4", features = ["derive"] }
+# toml_edit lets `cargo kick add` mutate features in Cargo.toml
+# without rewriting the entire file (preserves layout, comments,
+# blank lines, key ordering).
+toml_edit = "0.22"
 
 [dev-dependencies]
 tempfile = "3"
