@@ -1,16 +1,27 @@
 //! Plugin trait + `define_plugin()` factory.
 //!
 //! Plugins are like adapters minus the long-lived lifecycle — pure DI
-//! bindings + tower layers + contributors. See [`SPEC.md` §5](../SPEC.md#5-plugins-deep-dive).
+//! bindings + contributors today. See [`SPEC.md` §5](../SPEC.md#5-plugins-deep-dive).
 //!
-//! ## Phase 1.3 scope
+//! ## Current capabilities
 //!
-//! - [`define_plugin`] returns a [`PluginDef`] that builds into a
-//!   [`PluginFactory`] via `.defaults(...).build(...)`.
-//! - The factory exposes `.call()`, `.with(config)`, `.scoped(scope, config)`,
-//!   mirroring [`AdapterFactory`](crate::adapter::AdapterFactory).
-//! - Tower layer attachment and the `routes()` method are reserved for
-//!   when HTTP wiring lands (Phase 1.4).
+//! A `Plugin` can:
+//! - Register DI providers via [`Plugin::register`]
+//! - Contribute to the request-time context pipeline via
+//!   [`Plugin::contributors`]
+//!
+//! ## Planned (post-Phase 4)
+//!
+//! Plugins are expected to grow into full mini-frameworks-in-a-package:
+//! - **Mounting modules** — `Plugin::modules() -> Vec<HttpModule>` so a
+//!   plugin can drop in handler routes + service wiring as a unit.
+//! - **Owning adapters** — `Plugin::adapters() -> Vec<Arc<dyn Adapter>>`
+//!   so a plugin can ship a connection pool or background worker.
+//! - **Tower layers** — `Plugin::layers()` for cross-cutting middleware.
+//!
+//! Bootstrap will aggregate these alongside user-provided modules
+//! and adapters, giving plugin authors the same composition primitives
+//! as application code. Tracked as Phase 5 work.
 
 use crate::adapter::BuildContext;
 use crate::container::ContainerBuilder;
@@ -39,7 +50,7 @@ pub trait Plugin: Send + Sync + 'static {
     }
 
     /// Context contributors to add to the pipeline.
-    fn contributors(&self) -> Vec<Box<dyn AnyContributor>> {
+    fn contributors(&self) -> Vec<AnyContributor> {
         Vec::new()
     }
 }
