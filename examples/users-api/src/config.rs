@@ -1,30 +1,29 @@
-//! Env-driven config. This example does its own loading rather than
-//! depending on `kick-rs-config` (still scaffold-only at the time of
-//! writing) — keeps the example self-contained.
+//! Process configuration loaded via [`kick_rs::config::Config`].
+//!
+//! Layering: built-in defaults → optional `.env` file → `USERS_`-prefixed
+//! process env. Final shape is deserialized into [`Env`].
 
-use kick_rs::{KickError, KickResult};
+use kick_rs::config::Config;
+use kick_rs::KickResult;
+use serde::Deserialize;
 
-/// Process configuration read from environment variables at startup.
-#[derive(Debug, Clone)]
+/// Process configuration read at startup.
+#[derive(Debug, Clone, Deserialize)]
 pub struct Env {
     pub database_url: String,
     pub bind_addr: String,
 }
 
 impl Env {
-    /// Read environment variables, applying defaults where reasonable.
+    /// Build the loader, apply defaults, optionally pick up a local
+    /// `.env`, then override from `USERS_*` env vars.
     pub fn load() -> KickResult<Self> {
-        Ok(Self {
-            database_url: required("DATABASE_URL")?,
-            bind_addr: std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:3000".to_owned()),
-        })
+        Config::builder()
+            .with_defaults(serde_json::json!({
+                "bind_addr": "0.0.0.0:3000",
+            }))
+            .with_dotenv_optional(".env")
+            .with_env_prefix("USERS_")
+            .extract()
     }
-}
-
-fn required(key: &'static str) -> KickResult<String> {
-    std::env::var(key).map_err(|_| {
-        KickError::new("RK_C_MISSING_ENV", format!("required env var `{key}` is not set"))
-            .with_hint(format!("export {key}=... or copy .env.example to .env"))
-            .with_context("key", key)
-    })
 }

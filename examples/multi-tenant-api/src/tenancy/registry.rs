@@ -86,7 +86,7 @@ async fn build_tenant_pool(
     let opts =
         sqlx::postgres::PgConnectOptions::from_str(base_url)
             .map_err(|e| {
-                KickError::new("RK_A_PG_URL", format!("bad DATABASE_URL: {e}"))
+                KickError::new("RK_A_PG_URL", format!("bad MT_DATABASE_URL: {e}"))
                     .with_source(e)
             })?
             .options([("search_path", format!("{schema},public").as_str())]);

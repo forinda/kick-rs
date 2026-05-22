@@ -71,7 +71,7 @@ async fn open_pool(url: &str) -> KickResult<PgPool> {
         .await
         .map_err(|e| {
             KickError::new("RK_A_PG_CONNECT", format!("could not connect to postgres: {e}"))
-                .with_hint("check DATABASE_URL and that the server is up (`docker compose ps`)")
+                .with_hint("check MT_DATABASE_URL and that the server is up (`docker compose ps`)")
                 .with_source(e)
         })
 }

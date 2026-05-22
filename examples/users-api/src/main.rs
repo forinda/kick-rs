@@ -1,7 +1,7 @@
 //! `users-api` — minimal kick-rs example.
 //!
 //! Wiring:
-//! 1. Read env (DATABASE_URL, BIND_ADDR)
+//! 1. Load config via `kick_rs::config::Config` (defaults + `.env` + `USERS_*` env)
 //! 2. Open a sqlx PgPool
 //! 3. Run pending up-migrations via `sqlx::migrate!()` (embeds the
 //!    `migrations/` directory into the binary at compile time)
@@ -60,7 +60,7 @@ async fn open_pool(url: &str) -> KickResult<PgPool> {
         .await
         .map_err(|e| {
             KickError::new("RK_A_PG_CONNECT", format!("could not connect to postgres: {e}"))
-                .with_hint("check DATABASE_URL and that the server is up (`docker compose ps`)")
+                .with_hint("check USERS_DATABASE_URL and that the server is up (`docker compose ps`)")
                 .with_source(e)
         })
 }
