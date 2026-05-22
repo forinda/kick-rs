@@ -135,15 +135,20 @@ still be added a la carte.
 
 ```toml
 [dependencies]
-# From crates.io once published:
-rustkick = { version = "0.1", features = ["macros", "config"] }
+# From crates.io:
+rustkick = "0.0"
 
-# From git before publishing:
-# rustkick = { git = "https://github.com/forinda/rustkick", branch = "main", features = ["macros", "config"] }
+# From git for unreleased work:
+# rustkick = { git = "https://github.com/forinda/rustkick", branch = "main" }
 
 # From a local path during dev:
-# rustkick = { path = "../rustkick/crates/rustkick", features = ["macros", "config"] }
+# rustkick = { path = "../rustkick/crates/rustkick" }
 ```
+
+> The `macros` / `config` / `assets` features will return as optional
+> deps on the umbrella once those crates become publishable
+> (Phase 3 / Phase 5). Until then, depend on the auxiliary crate
+> directly via git if you need it pre-publish.
 
 ---
 
@@ -1009,7 +1014,7 @@ pub fn load_env() -> rustkick::KickResult<Env> {
 
 ```toml
 [dependencies]
-rustkick = { path = "../../crates/rustkick", features = ["macros", "config"] }
+rustkick = { path = "../../crates/rustkick" }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.8", features = ["postgres", "uuid", "runtime-tokio"] }

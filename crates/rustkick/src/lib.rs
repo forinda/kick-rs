@@ -39,12 +39,9 @@ pub use rustkick_http::{
 pub use rustkick_http::HttpModule as Module;
 pub use rustkick_http::HttpModuleBuilder as ModuleBuilder;
 
-// ── Optional crates re-exported under features ─────────────────────────
-#[cfg(feature = "macros")]
-pub use rustkick_macros as macros;
-
-#[cfg(feature = "config")]
-pub use rustkick_config as config;
-
-#[cfg(feature = "assets")]
-pub use rustkick_assets as assets;
+// The `macros` / `config` / `assets` re-exports will return here once
+// the underlying crates become publishable. Until then, depending on
+// them would block the umbrella crate from publishing (cargo refuses
+// to publish a crate with an optional dep that isn't on crates.io).
+// Adopters who need them today can depend on the auxiliary crates
+// directly via the git URL. Tracked in SPEC.md §11.
