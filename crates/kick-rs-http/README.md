@@ -79,7 +79,7 @@ shutdown.
 
 ```toml
 [dependencies]
-kick-rs-http = "0.0"
+kick-rs-http = "0.1.0-alpha.1"
 ```
 
 ## Status

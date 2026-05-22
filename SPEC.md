@@ -136,7 +136,7 @@ still be added a la carte.
 ```toml
 [dependencies]
 # From crates.io:
-kick-rs = "0.0"
+kick-rs = "0.1.0-alpha.1"
 
 # From git for unreleased work:
 # kick-rs = { git = "https://github.com/forinda/kick-rs", branch = "main" }
@@ -1085,26 +1085,52 @@ cargo run
 - [ ] `kick-rs-config` (env loader) — deferred; example does its own
        trivial env load to stay self-contained.
 
-### Phase 3 — Macros sugar
-- [ ] `#[service]`, `#[handler]`, `#[get("/")]` / `#[post]` / etc.
-- [ ] `define_env!` declarative macro
+### Phase 3 — Macros sugar ✅ Done
+- [x] `#[service]` proc-macro + `ServiceImpl` trait
+- [x] `.service::<T>()` builder method
+- [ ] `define_env!` declarative macro — deferred to tooling phase
 
-### Phase 4 — Context contributors
-- [ ] `ContextContributor` trait with typed `Deps`
-- [ ] Topo-sort + compile-time graph check via tuple-deps
-- [ ] Integration with `Ctx::get<T>()`
+### Phase 4 — Context contributors ✅ Done
+- [x] `ContextContributor` trait with typed tuple `Deps` (GAT-flavored
+       `Resolved<'a>`)
+- [x] `ContributorPipeline` with Kahn topo-sort + duplicate / missing
+       / cycle detection at boot
+- [x] `Ctx<T>` axum extractor backed by per-request `ContributorStore`
+- [x] `contributors_middleware` wires the store on every request
 
-### Phase 5 — Polish & extras
-- [ ] Adapter shutdown with `tokio::join!` + timeout
-- [ ] Structured request logging adapter
-- [ ] OpenAPI generation (utoipa integration)
-- [ ] Auth adapter (JWT)
+### Phase 5 — Polish & parity ✅ Done
+- [x] 5.1 — Plugin / HttpPlugin expansion (`adapters` / `modules` /
+       `http_modules` / `on_ready` / `shutdown`)
+- [x] 5.2 — Container access inside contributors (`ctx.inject::<T>()`)
+       + `#[contributor]` proc-macro
+- [x] 5.3 — `examples/multi-tenant-api` + framework-ambient request
+       `HeaderMap` / `Method` / `Uri`
+- [x] 5.4 — Phase-keyword middleware (`BeforeGlobal` / `AfterGlobal` /
+       `BeforeRoutes` / `AfterRoutes`)
+- [x] 5.5 — `Bootstrap::setup(|reg| ...)` + `ModuleList` /
+       `ModuleRegistry` for conditional / dynamic mount
+- [x] 5.6 — Contributor `OnErrorAction::{Propagate, Skip, Recover}`
+       error matrix
 
-### Phase 6 — Ecosystem (separate repos / crates, not in the foundation)
+### Phase 6 — Route attribute macros ✅ Done
+- [x] `#[get("/")]` / `#[post]` / `#[put]` / `#[patch]` / `#[delete]`
+- [x] `HttpModuleBuilder::handler` / `.handlers` for `_route`
+       registrar functions
+
+### Phase 7+ — Tooling & polish (post-`0.1.0-alpha.1`)
+- [ ] `0.1.0` stable bump after a few weeks of alpha shake-out
+- [ ] Built-in HTTP plugins: `request_id`, `request_logger`, `cors`,
+       `helmet`, `compression`, `trace_context`
+- [ ] OpenAPI generation via `utoipa` integration
+- [ ] `kick-rs-config` env loader + `define_env!`
+- [ ] `kick-rs-assets` typed asset manifest
+- [ ] `cargo kick` CLI: `new` / `dev` / `g <kind>` / `add` / `check`
+- [ ] `kick-rs-devtools` (`/__debug` JSON endpoint)
+
+### Future ecosystem (separate crates, not in the foundation)
 - [ ] `kick-rs-ws` (WebSocket via axum/tungstenite)
 - [ ] `kick-rs-queue` (BullMQ-style, redis)
 - [ ] `kick-rs-otel` (tracing + metrics)
-- [ ] `kick-rs-devtools` (`/__debug` JSON endpoint)
 
 > DB-related crates (`kick-rs-pg`, `kick-rs-diesel`, etc.) are intentionally
 > excluded from the foundation roadmap. They can ship later as
