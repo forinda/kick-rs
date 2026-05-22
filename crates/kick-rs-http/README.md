@@ -76,6 +76,34 @@ bootstrap()
 The spec is serialized to JSON once at construction and served as
 `application/json` at `/openapi.json` (or pass `.with_path("/api/spec")`).
 
+### Auto-collecting from modules
+
+Skip the parallel `#[derive(OpenApi)]` block by registering each
+handler's `__path_<name>` type directly on its module:
+
+```rust,ignore
+use kick_rs_http::openapi::OpenApiPlugin;
+use utoipa::openapi::InfoBuilder;
+
+#[utoipa::path(get, path = "/users/{id}", responses(...))]
+async fn get_user(/* ... */) { /* ... */ }
+
+let users = define_module("users")
+    .get("/users/:id", get_user)
+    .openapi_path::<__path_get_user>()
+    .build();
+
+let plugin = OpenApiPlugin::from_modules(
+    InfoBuilder::new().title("My API").version("1.0").build(),
+    [&users],
+);
+
+bootstrap().http_plugin(plugin).module(users).listen(addr).await
+```
+
+Sub-modules are walked recursively, so a top-level module nesting
+half the app is enough.
+
 [`utoipa`]: https://docs.rs/utoipa
 
 ## Quick example
