@@ -1,0 +1,21 @@
+[package]
+name        = "multi-tenant-api"
+version     = "0.0.0"
+description = "kick-rs example — multi-tenant CRUD on Postgres via schema-per-tenant pools"
+edition     = "2021"
+publish     = false
+
+[dependencies]
+kick-rs = { path = "../../crates/kick-rs", features = ["macros"] }
+
+tokio              = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync"] }
+axum               = "0.7"
+sqlx               = { version = "0.8", features = ["postgres", "uuid", "chrono", "runtime-tokio", "macros"] }
+serde              = { version = "1", features = ["derive"] }
+serde_json         = "1"
+uuid               = { version = "1", features = ["v7", "serde"] }
+chrono             = { version = "0.4", features = ["serde"] }
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror          = "2"
+async-trait        = "0.1"

@@ -185,7 +185,20 @@ impl Bootstrap {
         for a in &adapters {
             contributors.extend(a.contributors());
         }
-        let pipeline = Arc::new(crate::ContributorPipeline::build(contributors)?);
+
+        // Framework-ambient types: the contributors middleware injects
+        // these into the per-request store before the pipeline runs, so
+        // contributors can declare them as Deps without a matching
+        // producer. Kept in lockstep with `contributors_middleware`.
+        let ambient = [
+            std::any::TypeId::of::<axum::http::HeaderMap>(),
+            std::any::TypeId::of::<axum::http::Method>(),
+            std::any::TypeId::of::<axum::http::Uri>(),
+        ];
+        let pipeline = Arc::new(crate::ContributorPipeline::build_with_ambient(
+            contributors,
+            &ambient,
+        )?);
 
         // 5. Build the router.
         let mut router = axum::Router::new();
@@ -566,6 +579,49 @@ mod tests {
 
     async fn tenant_handler(tenant: Ctx<Tenant>) -> String {
         tenant.slug.clone()
+    }
+
+    // ── Request headers reachable via Deps ───────────────────────────────────
+
+    struct LoadTenantFromHeaderDep;
+    impl kick_rs_core::ContextContributor for LoadTenantFromHeaderDep {
+        type Key = Tenant;
+        type Deps = (axum::http::HeaderMap,);
+        async fn resolve<'a>(
+            &'a self,
+            _ctx: &'a dyn ContributorRequest,
+            (headers,): (&'a axum::http::HeaderMap,),
+        ) -> KickResult<Tenant> {
+            let slug = headers
+                .get("x-tenant-slug")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("default")
+                .to_owned();
+            Ok(Tenant { slug })
+        }
+    }
+
+    #[tokio::test]
+    async fn contributor_can_read_request_headers_via_deps() {
+        let m = define_module("tenancy")
+            .contribute(LoadTenantFromHeaderDep)
+            .get("/tenant", tenant_handler)
+            .build();
+
+        let (router, _state) = bootstrap().module(m).into_router().unwrap();
+
+        let res = router
+            .oneshot(
+                Request::get("/tenant")
+                    .header("X-Tenant-Slug", "globex")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), 64).await.unwrap();
+        assert_eq!(&body[..], b"globex");
     }
 
     #[tokio::test]

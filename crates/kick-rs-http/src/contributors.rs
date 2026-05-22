@@ -96,10 +96,16 @@ where
 
 /// Axum middleware that runs the contributor pipeline against a fresh
 /// store and stashes the populated store on the request for downstream
-/// handlers and extractors. The store is wired to the app's
-/// [`Container`](kick_rs_core::Container) (pulled from the request's
-/// `Extension`) so contributors can call `ctx.inject::<T>()` from
-/// inside `resolve()`.
+/// handlers and extractors. The store is wired to:
+///
+/// - The app's [`Container`](kick_rs_core::Container) (pulled from the
+///   request's `Extension`), so contributors can call
+///   `ctx.inject::<T>()` from inside `resolve()`.
+/// - The request's [`HeaderMap`](axum::http::HeaderMap),
+///   [`Method`](axum::http::Method), and [`Uri`](axum::http::Uri),
+///   pre-inserted as upstream values, so contributors can declare
+///   `Deps = (HeaderMap,)` and read request data without a separate
+///   extractor.
 ///
 /// Install via [`Bootstrap`](crate::Bootstrap) — direct use is for
 /// adopters wiring axum manually.
@@ -122,7 +128,22 @@ pub async fn contributors_middleware(
             )
         })?;
 
+    // Snapshot the request's surface bits so contributors can read them
+    // via the typed Deps tuple. Cloning is cheap — HeaderMap, Method,
+    // and Uri are all designed for this.
+    let headers: axum::http::HeaderMap = req.headers().clone();
+    let method: axum::http::Method = req.method().clone();
+    let uri: axum::http::Uri = req.uri().clone();
+
     let mut store = ContributorStore::with_container(container);
+    // Use the MutableContributorRequest interface so the framework
+    // doesn't have to grow a separate "system insert" API.
+    use kick_rs_core::MutableContributorRequest;
+    use std::any::TypeId;
+    store.insert(TypeId::of::<axum::http::HeaderMap>(), Box::new(headers));
+    store.insert(TypeId::of::<axum::http::Method>(), Box::new(method));
+    store.insert(TypeId::of::<axum::http::Uri>(), Box::new(uri));
+
     pipeline.run(&mut store).await.map_err(HttpError::from)?;
     req.extensions_mut().insert(store);
     Ok(next.run(req).await)
