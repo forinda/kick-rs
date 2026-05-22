@@ -13,12 +13,21 @@ authors.workspace      = true
 # Built-in HttpPlugins for common HTTP concerns. Each is independently
 # opt-out-able so adopters can trim deps when they don't need a given
 # plugin. Default enables everything for the "just works" experience.
-default = ["plugin-request-id", "plugin-request-logger", "plugin-cors", "plugin-compression"]
+default = [
+    "plugin-request-id",
+    "plugin-request-logger",
+    "plugin-cors",
+    "plugin-compression",
+    "plugin-helmet",
+    "plugin-trace-context",
+]
 
 plugin-request-id     = ["dep:uuid"]
 plugin-request-logger = []                          # only needs `tracing`, already present
 plugin-cors           = ["tower-http/cors"]
 plugin-compression    = ["tower-http/compression-full"]
+plugin-helmet         = []                          # pure header-setting, no extra deps
+plugin-trace-context  = ["dep:uuid"]                # for trace-id / span-id mint when traceparent is missing
 
 [dependencies]
 kick-rs-core = { workspace = true }
@@ -33,7 +42,7 @@ futures       = { workspace = true }
 serde         = { workspace = true }
 serde_json    = { workspace = true }
 tracing       = { workspace = true }
-uuid          = { version = "1", features = ["v7"], optional = true }
+uuid          = { version = "1", features = ["v4", "v7"], optional = true }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }

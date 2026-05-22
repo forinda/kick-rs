@@ -34,3 +34,9 @@ pub mod request_id;
 
 #[cfg(feature = "plugin-request-logger")]
 pub mod request_logger;
+
+#[cfg(feature = "plugin-helmet")]
+pub mod helmet;
+
+#[cfg(feature = "plugin-trace-context")]
+pub mod trace_context;
