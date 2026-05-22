@@ -1,4 +1,4 @@
-# Releasing rustkick
+# Releasing kick-rs
 
 > How versions get cut, where they're published, and what to do when
 > something goes wrong. Operational reference for maintainers — adopters
@@ -22,25 +22,25 @@ That's it. Everything below is the why + the failure modes.
 ## Versioning model
 
 **Independent versioning per crate**, mirroring `tokio-*` and `tower-*`.
-`rustkick-core` 0.2.0 can ship while `rustkick-http` stays at 0.1.3.
+`kick-rs-core` 0.2.0 can ship while `kick-rs-http` stays at 0.1.3.
 
 | Crate                | Releasable today | Reason                                   |
 |----------------------|------------------|------------------------------------------|
-| `rustkick-core`      | yes              | Real impl, 36 tests passing              |
-| `rustkick-http`      | yes              | Real impl, 9 tests passing               |
-| `rustkick`           | yes              | Thin umbrella over the two above         |
-| `rustkick-macros`    | **no**           | Pass-through `todo!()` placeholders      |
-| `rustkick-config`    | **no**           | Placeholder                              |
-| `rustkick-assets`    | **no**           | Placeholder                              |
-| `rustkick-cli`       | **no**           | Placeholder binary                       |
+| `kick-rs-core`      | yes              | Real impl, 36 tests passing              |
+| `kick-rs-http`      | yes              | Real impl, 9 tests passing               |
+| `kick-rs`           | yes              | Thin umbrella over the two above         |
+| `kick-rs-macros`    | **no**           | Pass-through `todo!()` placeholders      |
+| `kick-rs-config`    | **no**           | Placeholder                              |
+| `kick-rs-assets`    | **no**           | Placeholder                              |
+| `kick-rs-cli`       | **no**           | Placeholder binary                       |
 
 Placeholder crates carry `release = false` in
 [`release-plz.toml`](./release-plz.toml) **and** `publish = false` in
 their `Cargo.toml` (defense in depth — can't be accidentally cut even
 if release-plz is misconfigured).
 
-The umbrella `rustkick` crate's dependencies on `rustkick-core` and
-`rustkick-http` are pinned by **caret** version (`^0.x.y`), and
+The umbrella `kick-rs` crate's dependencies on `kick-rs-core` and
+`kick-rs-http` are pinned by **caret** version (`^0.x.y`), and
 release-plz updates those pins automatically when either of the
 underlying crates ships.
 
@@ -80,12 +80,12 @@ While the API is moving fast and crates carry `0.0.x` versions:
 - **No crates.io publishing yet** — `CARGO_REGISTRY_TOKEN` is *not* set
   in the GitHub repo secrets. The `release-plz` workflow opens Release
   PRs and creates git tags but skips the actual `cargo publish` step.
-- Adopters install via git deps. See README "Installing rustkick".
+- Adopters install via git deps. See README "Installing kick-rs".
 
 ## When you're ready to ship to crates.io
 
 1. **Reserve the crate names.** Log in to <https://crates.io/me>,
-   confirm `rustkick`, `rustkick-core`, `rustkick-http` are still
+   confirm `kick-rs`, `kick-rs-core`, `kick-rs-http` are still
    available. If any are taken, decide on alternatives *before*
    automating release.
 2. **Create a CI token.** crates.io → Account Settings → API Tokens →
@@ -110,14 +110,14 @@ If release-plz is wedged and you need to ship by hand:
 # 3. Commit, push, merge to main.
 
 # 4. Publish in dependency order:
-cargo publish -p rustkick-core
-cargo publish -p rustkick-http
-cargo publish -p rustkick
+cargo publish -p kick-rs-core
+cargo publish -p kick-rs-http
+cargo publish -p kick-rs
 
 # 5. Tag and push tags:
-git tag rustkick-core-v0.1.0
-git tag rustkick-http-v0.1.0
-git tag rustkick-v0.1.0
+git tag kick-rs-core-v0.1.0
+git tag kick-rs-http-v0.1.0
+git tag kick-rs-v0.1.0
 git push origin --tags
 ```
 
@@ -130,9 +130,9 @@ Yanking hides a version from new builds — existing `Cargo.lock` files
 keep working. **Versions cannot be deleted.**
 
 ```bash
-cargo yank --version 0.1.3 rustkick-core
+cargo yank --version 0.1.3 kick-rs-core
 # To un-yank:
-cargo yank --version 0.1.3 rustkick-core --undo
+cargo yank --version 0.1.3 kick-rs-core --undo
 ```
 
 After yanking:
@@ -145,17 +145,17 @@ After yanking:
 For unstable APIs:
 
 ```toml
-# crates/rustkick/Cargo.toml
+# crates/kick-rs/Cargo.toml
 [package]
 version = "0.1.0-alpha.1"
 ```
 
-Cargo treats `0.1.0-alpha.1 < 0.1.0`, so adopters using `rustkick = "0.1"`
+Cargo treats `0.1.0-alpha.1 < 0.1.0`, so adopters using `kick-rs = "0.1"`
 won't pick it up. Useful for opt-in early access:
 
 ```toml
 # In an adopter's Cargo.toml:
-rustkick = "0.1.0-alpha.1"     # explicit opt-in
+kick-rs = "0.1.0-alpha.1"     # explicit opt-in
 ```
 
 To leave pre-release mode, the next bump simply drops the suffix
@@ -165,9 +165,9 @@ To leave pre-release mode, the next bump simply drops the suffix
 
 Tags follow `<crate>-v<version>`:
 
-- `rustkick-core-v0.1.0`
-- `rustkick-http-v0.1.0`
-- `rustkick-v0.1.0`
+- `kick-rs-core-v0.1.0`
+- `kick-rs-http-v0.1.0`
+- `kick-rs-v0.1.0`
 
 This avoids ambiguity in a multi-crate workspace where multiple
 versions co-exist on the same commit. release-plz manages tag creation

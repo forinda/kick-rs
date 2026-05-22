@@ -1,0 +1,27 @@
+[package]
+name        = "kick-rs-http"
+version     = "0.0.0"
+description = "axum integration for kick-rs — bootstrap, Inject<T>, Ctx, built-in plugins"
+readme      = "README.md"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[dependencies]
+kick-rs-core = { workspace = true }
+axum          = { workspace = true }
+tokio         = { workspace = true }
+tower         = { workspace = true }
+tower-http    = { workspace = true }
+hyper         = { workspace = true }
+http          = { workspace = true }
+async-trait   = { workspace = true }
+futures       = { workspace = true }
+serde         = { workspace = true }
+serde_json    = { workspace = true }
+tracing       = { workspace = true }
+
+[dev-dependencies]
+tower = { workspace = true, features = ["util"] }

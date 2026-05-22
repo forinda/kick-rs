@@ -286,6 +286,74 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "kick-rs"
+version = "0.0.0"
+dependencies = [
+ "kick-rs-core",
+ "kick-rs-http",
+]
+
+[[package]]
+name = "kick-rs-assets"
+version = "0.0.0"
+dependencies = [
+ "kick-rs-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kick-rs-cli"
+version = "0.0.0"
+
+[[package]]
+name = "kick-rs-config"
+version = "0.0.0"
+dependencies = [
+ "kick-rs-core",
+ "serde",
+]
+
+[[package]]
+name = "kick-rs-core"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "kick-rs-http"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "futures",
+ "http",
+ "hyper",
+ "kick-rs-core",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+]
+
+[[package]]
+name = "kick-rs-macros"
+version = "0.0.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.186"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -401,74 +469,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed2bf2547551a7053d6fdfafda3f938979645c44812fbfcda098faae3f1a362d"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "rustkick"
-version = "0.0.0"
-dependencies = [
- "rustkick-core",
- "rustkick-http",
-]
-
-[[package]]
-name = "rustkick-assets"
-version = "0.0.0"
-dependencies = [
- "rustkick-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "rustkick-cli"
-version = "0.0.0"
-
-[[package]]
-name = "rustkick-config"
-version = "0.0.0"
-dependencies = [
- "rustkick-core",
- "serde",
-]
-
-[[package]]
-name = "rustkick-core"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "rustkick-http"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "axum",
- "futures",
- "http",
- "hyper",
- "rustkick-core",
- "serde",
- "serde_json",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
-]
-
-[[package]]
-name = "rustkick-macros"
-version = "0.0.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]

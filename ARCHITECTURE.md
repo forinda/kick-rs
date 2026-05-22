@@ -1,4 +1,4 @@
-# rustkick — Architecture & Internals
+# kick-rs — Architecture & Internals
 
 > Companion to [`SPEC.md`](./SPEC.md). Where SPEC describes the public
 > surface, this document describes how the pieces actually fit together
@@ -419,7 +419,7 @@ impl IntoResponse for KickError {
     fn into_response(self) -> Response {
         let status = self.status.unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
         let body = ProblemDetails {
-            type_: format!("https://errors.rustkick.dev/{}", self.code),
+            type_: format!("https://errors.kick-rs.dev/{}", self.code),
             title: self.message,
             status: status.as_u16(),
             detail: self.fix_hint,
@@ -459,7 +459,7 @@ async fn shutdown(adapters: Vec<Arc<dyn Adapter>>, timeout: Duration) {
 
 ### 7.1 SIGTERM handling
 
-By default, rustkick installs its own SIGTERM/SIGINT handler. If an
+By default, kick-rs installs its own SIGTERM/SIGINT handler. If an
 observability SDK (OpenTelemetry, Sentry) needs to own signal handling,
 pass `process_hooks = ProcessHooks::ErrorsOnly` to `bootstrap()` to skip
 the framework's installation — same toggle as KickJS.
@@ -479,7 +479,7 @@ bootstrap()
 
 Input:
 ```rust
-#[rustkick::service]
+#[kick-rs::service]
 pub struct UserService {
     repo: Inject<UserRepository>,
     pool: Inject<PgPool>,
@@ -502,7 +502,7 @@ impl UserService {
     }
 }
 
-impl ::rustkick::Buildable for UserService {
+impl ::kick-rs::Buildable for UserService {
     fn register(builder: &mut ContainerBuilder) {
         builder.singleton_factory::<Self, _>(Self::from_container);
     }
@@ -575,7 +575,7 @@ Arc clone on every resolve. We don't, because:
 ## Appendix A — File-by-file outline
 
 ```
-crates/rustkick-core/src/
+crates/kick-rs-core/src/
 ├── lib.rs                        # public exports
 ├── container/
 │   ├── mod.rs                   # Container, ContainerBuilder
@@ -592,7 +592,7 @@ crates/rustkick-core/src/
 ├── error.rs                      # KickError, KickResult
 └── mount_sort.rs                 # generic Kahn topo-sort
 
-crates/rustkick-http/src/
+crates/kick-rs-http/src/
 ├── lib.rs                        # public exports
 ├── bootstrap.rs                  # bootstrap() builder
 ├── context.rs                    # RequestContext, Ctx<P>
@@ -603,24 +603,24 @@ crates/rustkick-http/src/
     ├── request_logger.rs
     └── error_handler.rs
 
-crates/rustkick-macros/src/
+crates/kick-rs-macros/src/
 ├── lib.rs                        # proc-macro entry points
 ├── service.rs                    # #[service]
 ├── handler.rs                    # #[handler] / #[get] / etc.
 └── contributor.rs                # #[contributor]
 
-crates/rustkick-config/src/
+crates/kick-rs-config/src/
 ├── lib.rs
 ├── env.rs                        # define_env! + load_env()
 └── service.rs                    # ConfigService
 
-crates/rustkick-assets/src/
+crates/kick-rs-assets/src/
 ├── lib.rs                        # AssetManifest, asset_keys! macro, UnknownAssetError
 ├── manifest.rs                   # load / watch
 └── resolve.rs                    # resolve(key) + typed key registry
 
-crates/rustkick-cli/                # binary crate
-├── src/main.rs                    # `cargo rustkick` entry point
+crates/kick-rs-cli/                # binary crate
+├── src/main.rs                    # `cargo kick-rs` entry point
 ├── src/commands/{new,dev,gen,add,info,check}.rs
 └── templates/                     # embedded code templates for `g`
 

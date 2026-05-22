@@ -1,8 +1,8 @@
 # release-plz configuration. See https://release-plz.dev/docs.
 #
 # How this repo releases:
-#  * Independent versioning per crate — `rustkick-core` can ship 0.2.0 while
-#    `rustkick-http` stays at 0.1.3. The umbrella `rustkick` crate's deps
+#  * Independent versioning per crate — `kick-rs-core` can ship 0.2.0 while
+#    `kick-rs-http` stays at 0.1.3. The umbrella `kick-rs` crate's deps
 #    on the others are bumped automatically by release-plz when it cuts
 #    each Release PR.
 #  * Conventional Commits drive semver bumps:
@@ -11,7 +11,7 @@
 #      docs/chore/refactor/test/ci/build: patch (or skipped if no code)
 #      `!` or `BREAKING CHANGE`: major bump (still 0.x → 0.minor while < 1.0)
 #  * Per-crate CHANGELOG.md is updated next to each crate's Cargo.toml.
-#  * Git tags are `<crate>-v<version>` (e.g. `rustkick-core-v0.1.0`).
+#  * Git tags are `<crate>-v<version>` (e.g. `kick-rs-core-v0.1.0`).
 #  * The example crate under examples/ is excluded from the workspace and
 #    has `publish = false`, so it's invisible to release-plz.
 #
@@ -39,21 +39,21 @@ allow_dirty = false
 
 # ── Per-crate overrides ──────────────────────────────────────────────────
 #
-# Phase-1 releasable crates: rustkick-core, rustkick-http, rustkick (umbrella).
+# Phase-1 releasable crates: kick-rs-core, kick-rs-http, kick-rs (umbrella).
 # Everything else is a placeholder (todo!() bodies, no public surface ready)
 # — gated off until each one actually does something.
 
 [[package]]
-name = "rustkick-core"
-git_tag_name = "rustkick-core-v{{ version }}"
+name = "kick-rs-core"
+git_tag_name = "kick-rs-core-v{{ version }}"
 
 [[package]]
-name = "rustkick-http"
-git_tag_name = "rustkick-http-v{{ version }}"
+name = "kick-rs-http"
+git_tag_name = "kick-rs-http-v{{ version }}"
 
 [[package]]
-name = "rustkick"
-git_tag_name = "rustkick-v{{ version }}"
+name = "kick-rs"
+git_tag_name = "kick-rs-v{{ version }}"
 
 # ── Gated (placeholders, not yet ready to publish) ───────────────────────
 #
@@ -64,21 +64,21 @@ git_tag_name = "rustkick-v{{ version }}"
 # anything useful.
 
 [[package]]
-name = "rustkick-macros"
+name = "kick-rs-macros"
 release = false              # Phase 3 — flip when proc-macros land
-publish = false              # mirrors crates/rustkick-macros/Cargo.toml
+publish = false              # mirrors crates/kick-rs-macros/Cargo.toml
 
 [[package]]
-name = "rustkick-config"
+name = "kick-rs-config"
 release = false              # Phase 5 — flip when env loader lands
-publish = false              # mirrors crates/rustkick-config/Cargo.toml
+publish = false              # mirrors crates/kick-rs-config/Cargo.toml
 
 [[package]]
-name = "rustkick-assets"
+name = "kick-rs-assets"
 release = false              # Phase 5 — flip when asset manifest lands
-publish = false              # mirrors crates/rustkick-assets/Cargo.toml
+publish = false              # mirrors crates/kick-rs-assets/Cargo.toml
 
 [[package]]
-name = "rustkick-cli"
+name = "kick-rs-cli"
 release = false              # Phase 5 — flip when CLI lands
-publish = false              # mirrors crates/rustkick-cli/Cargo.toml
+publish = false              # mirrors crates/kick-rs-cli/Cargo.toml

@@ -1,6 +1,6 @@
 //! `users` resource — routes, services, model.
 //!
-//! See [`define`] for the wired-up [`rustkick::Module`] this file exports.
+//! See [`define`] for the wired-up [`kick_rs::Module`] this file exports.
 
 pub mod handlers;
 pub mod model;
@@ -8,7 +8,7 @@ pub mod repository;
 pub mod service;
 
 use repository::UserRepository;
-use rustkick::{define_module, Module};
+use kick_rs::{define_module, Module};
 use service::UserService;
 use std::sync::Arc;
 

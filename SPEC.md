@@ -1,4 +1,4 @@
-# rustkick — Design Specification
+# kick-rs — Design Specification
 
 > A decorator-light, module-driven web framework for Rust, built on
 > [axum](https://github.com/tokio-rs/axum) and [tokio](https://tokio.rs).
@@ -19,10 +19,10 @@
 4. [Core Concepts](#4-core-concepts)
 5. [Plugins (Deep Dive)](#5-plugins-deep-dive)
 6. [Assets](#6-assets)
-7. [CLI (`cargo rustkick`)](#7-cli-cargo-rustkick)
+7. [CLI (`cargo kick-rs`)](#7-cli-cargo-kick-rs)
 8. [Public API Surface](#8-public-api-surface)
 9. [Sample: Users CRUD with Postgres](#9-sample-users-crud-with-postgres)
-10. [Comparison: KickJS → rustkick](#10-comparison-kickjs--rustkick)
+10. [Comparison: KickJS → kick-rs](#10-comparison-kickjs--kick-rs)
 11. [Implementation Phases](#11-implementation-phases)
 12. [Open Questions](#12-open-questions)
 
@@ -73,7 +73,7 @@
 |---|-----------|-------------|
 | 1 | **Builder is canonical, macros are sugar** | Every macro expands to a builder call you could write yourself. No magic. |
 | 2 | **Errors at boot, not on the hot path** | Missing DI tokens, cyclic contributors, unmounted modules all fail `bootstrap()` with a structured `KickError`. |
-| 3 | **Small stable core + opt-in adapters** | `rustkick` (core), `rustkick-http`, `rustkick-pg` are baseline. Auth/OpenAPI/WS/etc. ship as separate crates with feature flags. |
+| 3 | **Small stable core + opt-in adapters** | `kick-rs` (core), `kick-rs-http`, `kick-rs-pg` are baseline. Auth/OpenAPI/WS/etc. ship as separate crates with feature flags. |
 | 4 | **Co-location over central config** | Routes, services, and contributors live next to the module they belong to. Wiring uses `define_module().mount(...)`. |
 | 5 | **Trait objects only where dynamic dispatch is genuinely needed** | DI container is the boundary. Inside a handler, `Inject<T>` returns the concrete type (or its `Arc`), not `dyn Trait`. |
 | 6 | **Async-first, sync-second** | Every adapter hook is `async fn`. Sync code wraps in `spawn_blocking` if needed. |
@@ -91,13 +91,13 @@ rust-pg/                                  # workspace root
 ├── README.md
 ├── rust-toolchain.toml                   # pinned toolchain
 ├── crates/
-│   ├── rustkick/                         # umbrella crate, re-exports core+http
-│   ├── rustkick-core/                    # Container, Module, Adapter, Plugin, errors
-│   ├── rustkick-http/                    # axum integration, bootstrap, Inject extractor
-│   ├── rustkick-macros/                  # #[service] / #[handler] / #[get] / #[plugin] proc-macros
-│   ├── rustkick-config/                  # env loading + ConfigService
-│   ├── rustkick-assets/                  # typed asset manifest + cache-busting resolver
-│   └── rustkick-cli/                     # `cargo rustkick` subcommand (new, dev, g, add)
+│   ├── kick-rs/                         # umbrella crate, re-exports core+http
+│   ├── kick-rs-core/                    # Container, Module, Adapter, Plugin, errors
+│   ├── kick-rs-http/                    # axum integration, bootstrap, Inject extractor
+│   ├── kick-rs-macros/                  # #[service] / #[handler] / #[get] / #[plugin] proc-macros
+│   ├── kick-rs-config/                  # env loading + ConfigService
+│   ├── kick-rs-assets/                  # typed asset manifest + cache-busting resolver
+│   └── kick-rs-cli/                     # `cargo kick-rs` subcommand (new, dev, g, add)
 └── examples/
     └── users-api/                        # Users CRUD on Postgres (sqlx — example-local, not a framework crate)
 ```
@@ -106,14 +106,14 @@ rust-pg/                                  # workspace root
 
 ```
                  ┌──────────────┐
-                 │  rustkick    │ ◄── apps depend on this
+                 │  kick-rs    │ ◄── apps depend on this
                  │  (umbrella)  │
                  └──────┬───────┘
                         │ re-exports
         ┌───────────────┼─────────────────┐
         ▼               ▼                 ▼
 ┌───────────────┐ ┌──────────────┐ ┌────────────────┐
-│ rustkick-core │ │ rustkick-http│ │ rustkick-macros│
+│ kick-rs-core │ │ kick-rs-http│ │ kick-rs-macros│
 └───────────────┘ └──────┬───────┘ └────────┬───────┘
        ▲                 │                  │
        └─ depended on by ┴──────────────────┘
@@ -121,7 +121,7 @@ rust-pg/                                  # workspace root
   Optional add-on crates (a la carte, no DB anywhere in this list):
 
   ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐
-  │ rustkick-config  │  │ rustkick-assets  │  │  rustkick-cli    │
+  │ kick-rs-config  │  │ kick-rs-assets  │  │  kick-rs-cli    │
   │  (env loader)    │  │ (manifest+keys)  │  │ (cargo subcmd)   │
   └──────────────────┘  └──────────────────┘  └──────────────────┘
 ```
@@ -130,19 +130,19 @@ rust-pg/                                  # workspace root
 
 KickJS publishes `@forinda/kickjs` as a single import for app code. We mirror
 that: app authors put **one** dependency in `Cargo.toml` and get
-`rustkick::{Container, Module, bootstrap, Inject, …}`. Adapter crates can
+`kick-rs::{Container, Module, bootstrap, Inject, …}`. Adapter crates can
 still be added a la carte.
 
 ```toml
 [dependencies]
 # From crates.io:
-rustkick = "0.0"
+kick-rs = "0.0"
 
 # From git for unreleased work:
-# rustkick = { git = "https://github.com/forinda/rustkick", branch = "main" }
+# kick-rs = { git = "https://github.com/forinda/kick-rs", branch = "main" }
 
 # From a local path during dev:
-# rustkick = { path = "../rustkick/crates/rustkick" }
+# kick-rs = { path = "../kick-rs/crates/kick-rs" }
 ```
 
 > The `macros` / `config` / `assets` features will return as optional
@@ -441,7 +441,7 @@ constructor cannot legally close over a per-request value. Surfaces as
 ```rust
 #[tokio::main]
 async fn main() -> KickResult<()> {
-    rustkick::bootstrap()
+    kick-rs::bootstrap()
         .modules(modules())
         .adapter(pg_adapter)
         .adapter(otel_adapter)
@@ -469,7 +469,7 @@ Flow:
 A **plugin** is a packaged bundle of: DI providers, tower layers, context
 contributors, and route fragments — assembled by a factory, registered by
 name, sorted by `depends_on`, and validated at boot. It is the
-*third-party extension point*: the same surface rustkick itself uses
+*third-party extension point*: the same surface kick-rs itself uses
 internally for first-party features like request-id and the request
 logger.
 
@@ -585,11 +585,11 @@ this with `defineAugmentation()` extending `KickJsPluginRegistry`. Rust
 analog uses a trait + feature flag:
 
 ```rust
-// Inside rustkick-sentry crate
+// Inside kick-rs-sentry crate
 pub trait SentryAugmentation { fn sentry_client(&self) -> Arc<SentryClient>; }
 impl SentryAugmentation for Container { /* … */ }
 
-// In user code (only compiles if rustkick-sentry is a dep):
+// In user code (only compiles if kick-rs-sentry is a dep):
 let client = container.sentry_client();
 ```
 
@@ -597,7 +597,7 @@ Plugin authors are free to expose extension traits on `Container` /
 `Module` — this is the idiomatic Rust replacement for KickJS module
 augmentation.
 
-### 5.7 Built-in plugins shipped with rustkick
+### 5.7 Built-in plugins shipped with kick-rs
 
 | Plugin           | What it adds                                                     |
 |------------------|------------------------------------------------------------------|
@@ -608,7 +608,7 @@ augmentation.
 | `compression`    | gzip/br via `tower_http::compression`                            |
 | `trace_context`  | W3C `traceparent` parsing → `TraceContext` token                 |
 
-All built-in plugins live in `rustkick-http::plugins` and are feature-gated.
+All built-in plugins live in `kick-rs-http::plugins` and are feature-gated.
 
 ### 5.8 Plugin vs Adapter — when to pick which
 
@@ -648,7 +648,7 @@ manifest. We carry over the typed-key idea — without the codegen step.
 ### 6.3 Loading + resolving
 
 ```rust
-use rustkick_assets::AssetManifest;
+use kick_rs_assets::AssetManifest;
 
 let manifest = AssetManifest::load("dist/assets-manifest.json")?;
 container.bind_singleton(manifest);
@@ -669,7 +669,7 @@ async fn home(assets: Inject<AssetManifest>) -> Html<String> {
 ### 6.4 Typed keys via macro
 
 ```rust
-use rustkick_assets::asset_keys;
+use kick_rs_assets::asset_keys;
 
 asset_keys! {
     pub mod ui {
@@ -727,33 +727,33 @@ serving line up.
 
 ---
 
-## 7. CLI (`cargo rustkick`)
+## 7. CLI (`cargo kick-rs`)
 
 ### 7.1 Distribution
 
 Shipped as a **cargo subcommand**: install via
-`cargo install rustkick-cli` and invoke as `cargo rustkick <subcommand>`.
+`cargo install kick-rs-cli` and invoke as `cargo kick-rs <subcommand>`.
 This is the Rust convention (mirrors `cargo-edit`, `cargo-watch`,
 `cargo-sqlx`) and avoids polluting `$PATH` with a bespoke binary name.
 
 ### 7.2 Command surface (v0.1)
 
 ```
-cargo rustkick new <name>            # Scaffold a new app
-cargo rustkick dev                   # cargo watch -x run, with extras
-cargo rustkick g <kind> <name>       # Generate code
-cargo rustkick add <package>         # Add a rustkick adapter/plugin to Cargo.toml
-cargo rustkick info                  # Print framework + project versions
-cargo rustkick check                 # Static check: DI graph, contributor cycles
+cargo kick-rs new <name>            # Scaffold a new app
+cargo kick-rs dev                   # cargo watch -x run, with extras
+cargo kick-rs g <kind> <name>       # Generate code
+cargo kick-rs add <package>         # Add a kick-rs adapter/plugin to Cargo.toml
+cargo kick-rs info                  # Print framework + project versions
+cargo kick-rs check                 # Static check: DI graph, contributor cycles
 ```
 
 ### 7.3 Project scaffolding (`new`)
 
 ```bash
-cargo rustkick new my-api
-cargo rustkick new my-api --template rest    # rest | minimal | ddd
-cargo rustkick new my-api --pg               # include rustkick-pg + migrations dir
-cargo rustkick new my-api --yes              # accept all defaults non-interactively
+cargo kick-rs new my-api
+cargo kick-rs new my-api --template rest    # rest | minimal | ddd
+cargo kick-rs new my-api --pg               # include kick-rs-pg + migrations dir
+cargo kick-rs new my-api --yes              # accept all defaults non-interactively
 ```
 
 Templates (mirroring KickJS `kick new`):
@@ -767,14 +767,14 @@ Templates (mirroring KickJS `kick new`):
 ### 7.4 Code generators (`g`)
 
 ```bash
-cargo rustkick g module users           # Full module: handlers, service, repository, model
-cargo rustkick g module users --repo pg # …with a sqlx-backed Postgres repo
-cargo rustkick g controller users       # Just a handlers.rs file with empty CRUD stubs
-cargo rustkick g service payment        # Single #[service] struct
-cargo rustkick g adapter websocket      # Adapter scaffold with every lifecycle hook stubbed
-cargo rustkick g plugin analytics       # Plugin scaffold with register/layers/contributors
-cargo rustkick g contributor tenant     # ContextContributor impl with typed Deps
-cargo rustkick g migration add_users    # Wraps `sqlx migrate add`
+cargo kick-rs g module users           # Full module: handlers, service, repository, model
+cargo kick-rs g module users --repo pg # …with a sqlx-backed Postgres repo
+cargo kick-rs g controller users       # Just a handlers.rs file with empty CRUD stubs
+cargo kick-rs g service payment        # Single #[service] struct
+cargo kick-rs g adapter websocket      # Adapter scaffold with every lifecycle hook stubbed
+cargo kick-rs g plugin analytics       # Plugin scaffold with register/layers/contributors
+cargo kick-rs g contributor tenant     # ContextContributor impl with typed Deps
+cargo kick-rs g migration add_users    # Wraps `sqlx migrate add`
 ```
 
 Generators emit **fully-stubbed** files (every trait method present with
@@ -785,13 +785,13 @@ what you have to add.
 ### 7.5 Dev loop (`dev`)
 
 ```bash
-cargo rustkick dev
-cargo rustkick dev --port 4000
-cargo rustkick dev --no-watch          # one-shot run, no recompile loop
+cargo kick-rs dev
+cargo kick-rs dev --port 4000
+cargo kick-rs dev --no-watch          # one-shot run, no recompile loop
 ```
 
 Under the hood: `cargo watch -x 'run --bin <app>'`, with:
-- Colored startup banner (rustkick version, listen addr, mounted plugins/adapters)
+- Colored startup banner (kick-rs version, listen addr, mounted plugins/adapters)
 - A `Ctrl+C` handler that triggers graceful shutdown via SIGTERM
 - Optional asset manifest watcher if `--with-assets dist/manifest.json` is passed
 
@@ -801,19 +801,19 @@ and falls back to a single `cargo run`.
 ### 7.6 Package management (`add`)
 
 ```bash
-cargo rustkick add pg                 # Adds rustkick-pg with version pinned to framework
-cargo rustkick add auth swagger ws    # Multiple at once
-cargo rustkick add --list             # Print catalog
+cargo kick-rs add pg                 # Adds kick-rs-pg with version pinned to framework
+cargo kick-rs add auth swagger ws    # Multiple at once
+cargo kick-rs add --list             # Print catalog
 ```
 
-Wraps `cargo add` with the right crate name (`rustkick-<x>`), version
+Wraps `cargo add` with the right crate name (`kick-rs-<x>`), version
 matching, and any required feature flags. Refuses to install crates not
-in the rustkick catalog (with a "did you mean…?" hint).
+in the kick-rs catalog (with a "did you mean…?" hint).
 
 ### 7.7 Static analysis (`check`)
 
 ```bash
-cargo rustkick check
+cargo kick-rs check
 ```
 
 Parses `src/main.rs` (or a configured entry point), simulates the
@@ -828,7 +828,7 @@ and reports:
 Runs in CI before `cargo test` to surface graph errors faster than waiting
 for the binary to start.
 
-### 7.8 Config file: `rustkick.toml`
+### 7.8 Config file: `kick-rs.toml`
 
 Optional, lives next to `Cargo.toml`. Drives CLI defaults — equivalent
 to KickJS `kick.config.ts`.
@@ -849,9 +849,9 @@ pluralize = true
 
 ### 7.9 Implementation crate
 
-`rustkick-cli` is a normal binary crate (`bin/main.rs`) using `clap` v4
+`kick-rs-cli` is a normal binary crate (`bin/main.rs`) using `clap` v4
 for arg parsing and `tera`/`minijinja` for template rendering. Templates
-live in `crates/rustkick-cli/templates/` and are embedded with
+live in `crates/kick-rs-cli/templates/` and are embedded with
 `include_str!`.
 
 ---
@@ -859,8 +859,8 @@ live in `crates/rustkick-cli/templates/` and are embedded with
 ## 8. Public API Surface
 
 ```rust
-// rustkick prelude — what `use rustkick::*;` brings in
-pub use rustkick_core::{
+// kick-rs prelude — what `use kick-rs::*;` brings in
+pub use kick_rs_core::{
     Container, ContainerBuilder, Token, Scope,
     Module, define_module, define_modules, ModuleList,
     Adapter, define_adapter, AdapterContext,
@@ -869,7 +869,7 @@ pub use rustkick_core::{
     KickError, KickResult,
 };
 
-pub use rustkick_http::{
+pub use kick_rs_http::{
     bootstrap, Bootstrap,
     Ctx, RequestContext,
     Inject,                       // axum extractor
@@ -877,10 +877,10 @@ pub use rustkick_http::{
 };
 
 #[cfg(feature = "macros")]
-pub use rustkick_macros::{service, handler, get, post, put, patch, delete};
+pub use kick_rs_macros::{service, handler, get, post, put, patch, delete};
 
 #[cfg(feature = "config")]
-pub use rustkick_config::{ConfigService, define_env};
+pub use kick_rs_config::{ConfigService, define_env};
 ```
 
 ---
@@ -892,7 +892,7 @@ This is what the `examples/users-api` directory will contain.
 ### 6.1 `src/main.rs`
 
 ```rust
-use rustkick::{bootstrap, KickResult};
+use kick-rs::{bootstrap, KickResult};
 use users_api::{adapters::pg_adapter, config::load_env, modules::modules};
 
 #[tokio::main]
@@ -919,11 +919,11 @@ pub mod model;
 pub mod repository;
 pub mod service;
 
-use rustkick::define_module;
+use kick-rs::define_module;
 pub use service::UserService;
 pub use repository::UserRepository;
 
-pub fn users_module() -> rustkick::Module {
+pub fn users_module() -> kick-rs::Module {
     define_module("users")
         .prefix("/users")
         .service::<UserRepository>()
@@ -940,11 +940,11 @@ pub fn users_module() -> rustkick::Module {
 ### 6.3 `src/modules/users/service.rs`
 
 ```rust
-use rustkick::Inject;
+use kick-rs::Inject;
 use uuid::Uuid;
 use crate::modules::users::{model::User, repository::UserRepository};
 
-#[rustkick::service]
+#[kick-rs::service]
 pub struct UserService {
     repo: Inject<UserRepository>,
 }
@@ -966,7 +966,7 @@ impl UserService {
 
 ```rust
 use axum::Json;
-use rustkick::{Ctx, Inject, KickResult};
+use kick-rs::{Ctx, Inject, KickResult};
 use serde::Deserialize;
 use uuid::Uuid;
 
@@ -995,7 +995,7 @@ pub async fn create(
 ### 6.5 `src/config.rs`
 
 ```rust
-use rustkick_config::define_env;
+use kick_rs_config::define_env;
 
 define_env! {
     pub struct Env {
@@ -1005,7 +1005,7 @@ define_env! {
     }
 }
 
-pub fn load_env() -> rustkick::KickResult<Env> {
+pub fn load_env() -> kick-rs::KickResult<Env> {
     Env::from_env()
 }
 ```
@@ -1014,7 +1014,7 @@ pub fn load_env() -> rustkick::KickResult<Env> {
 
 ```toml
 [dependencies]
-rustkick = { path = "../../crates/rustkick" }
+kick-rs = { path = "../../crates/kick-rs" }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 sqlx = { version = "0.8", features = ["postgres", "uuid", "runtime-tokio"] }
@@ -1032,13 +1032,13 @@ cargo run
 
 ---
 
-## 10. Comparison: KickJS → rustkick
+## 10. Comparison: KickJS → kick-rs
 
-| KickJS                            | rustkick                                   | Notes |
+| KickJS                            | kick-rs                                   | Notes |
 |-----------------------------------|--------------------------------------------|-------|
 | `@Controller('/users')`           | `define_module().prefix("/users")`         | Module = controller + module rolled in one. |
 | `@Get('/:id') show(ctx) { … }`    | `.get("/:id", handlers::show)`             | Or `#[get("/:id")]` with the macros feature. |
-| `@Service() class UserService`    | `#[rustkick::service] struct UserService`  | Or just `.service::<UserService>()` registration. |
+| `@Service() class UserService`    | `#[kick-rs::service] struct UserService`  | Or just `.service::<UserService>()` registration. |
 | `@Autowired private repo: Repo`   | `repo: Inject<Repo>` field                 | Constructor-style; `#[service]` generates the wiring. |
 | `@Inject('app/users/repo')`       | `Inject<USER_REPO>` where `USER_REPO: Token<…>` | Tokens carry names into errors. |
 | `defineHttpContextDecorator`      | `impl ContextContributor for X`            | Typed `Deps` make missing-dep an *unused import*, not a runtime error. |
@@ -1055,8 +1055,8 @@ cargo run
 | `Zod` validation                  | `serde` + `validator` + `schemars`         | Auto-derived OpenAPI via `utoipa`/`aide`. |
 | `kick typegen`                    | (not needed — Rust has real types)         | Routes/params/env keys typed natively. |
 | `kick dev` (Vite HMR)             | `cargo watch -x run`                       | Recompile loop, no in-process swap. |
-| `kick g module users`             | `cargo rustkick gen module users`          | (deferred — v0.2.) |
-| DevTools `/_debug`                | `rustkick-devtools` (deferred)             | Feature-gated JSON endpoint. |
+| `kick g module users`             | `cargo kick-rs gen module users`          | (deferred — v0.2.) |
+| DevTools `/_debug`                | `kick-rs-devtools` (deferred)             | Feature-gated JSON endpoint. |
 
 ---
 
@@ -1067,13 +1067,13 @@ cargo run
 - [ ] `ARCHITECTURE.md` (internals)
 
 ### Phase 1 — Core skeleton ✅ Done
-- [x] `rustkick-core`: `Container` with three-scope resolution, `Module` provider folding,
+- [x] `kick-rs-core`: `Container` with three-scope resolution, `Module` provider folding,
       `define_adapter` / `define_plugin` factories (`.call()` / `.with()` / `.scoped()`),
       `KickError` + structured error matrix, generic Kahn `mount_sort`, `Introspect` contract
-- [x] `rustkick-http`: `bootstrap().listen()` with real axum integration, `Inject<T>`
+- [x] `kick-rs-http`: `bootstrap().listen()` with real axum integration, `Inject<T>`
       `FromRequestParts` extractor, `HttpModule` with `.get`/`.post`/`.put`/`.patch`/`.delete`,
       `HttpError` (RFC 7807 problem-details), cooperative shutdown with per-adapter timeouts
-- [x] `rustkick` umbrella crate re-exports HTTP `define_module` as the default
+- [x] `kick-rs` umbrella crate re-exports HTTP `define_module` as the default
 
       45/45 tests passing (12 container · 9 module · 4 mount_sort · 6 adapter · 5 plugin · 9 http)
 
@@ -1082,7 +1082,7 @@ cargo run
        (sqlx wiring lives inside the example, not in framework crates).
        Reversible sqlx-cli migrations applied in-process at startup
        via `sqlx::migrate!()`.
-- [ ] `rustkick-config` (env loader) — deferred; example does its own
+- [ ] `kick-rs-config` (env loader) — deferred; example does its own
        trivial env load to stay self-contained.
 
 ### Phase 3 — Macros sugar
@@ -1101,12 +1101,12 @@ cargo run
 - [ ] Auth adapter (JWT)
 
 ### Phase 6 — Ecosystem (separate repos / crates, not in the foundation)
-- [ ] `rustkick-ws` (WebSocket via axum/tungstenite)
-- [ ] `rustkick-queue` (BullMQ-style, redis)
-- [ ] `rustkick-otel` (tracing + metrics)
-- [ ] `rustkick-devtools` (`/__debug` JSON endpoint)
+- [ ] `kick-rs-ws` (WebSocket via axum/tungstenite)
+- [ ] `kick-rs-queue` (BullMQ-style, redis)
+- [ ] `kick-rs-otel` (tracing + metrics)
+- [ ] `kick-rs-devtools` (`/__debug` JSON endpoint)
 
-> DB-related crates (`rustkick-pg`, `rustkick-diesel`, etc.) are intentionally
+> DB-related crates (`kick-rs-pg`, `kick-rs-diesel`, etc.) are intentionally
 > excluded from the foundation roadmap. They can ship later as
 > third-party crates if a real need surfaces.
 
@@ -1130,7 +1130,7 @@ cargo run
 
 4. **Database integration.** v0.1 explicitly excludes DB code from
    framework crates. Adopters wire their ORM/driver as a normal adapter.
-   A `rustkick-db` trait abstraction may land if a clear pattern
+   A `kick-rs-db` trait abstraction may land if a clear pattern
    emerges from real-world usage — but speculating now would lock
    premature design.
 

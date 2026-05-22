@@ -1,8 +1,8 @@
 //! Env-driven config. This example does its own loading rather than
-//! depending on `rustkick-config` (still scaffold-only at the time of
+//! depending on `kick-rs-config` (still scaffold-only at the time of
 //! writing) — keeps the example self-contained.
 
-use rustkick::{KickError, KickResult};
+use kick_rs::{KickError, KickResult};
 
 /// Process configuration read from environment variables at startup.
 #[derive(Debug, Clone)]

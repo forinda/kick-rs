@@ -1,13 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/rustkick",
-    "crates/rustkick-core",
-    "crates/rustkick-http",
-    "crates/rustkick-macros",
-    "crates/rustkick-config",
-    "crates/rustkick-assets",
-    "crates/rustkick-cli",
+    "crates/kick-rs",
+    "crates/kick-rs-core",
+    "crates/kick-rs-http",
+    "crates/kick-rs-macros",
+    "crates/kick-rs-config",
+    "crates/kick-rs-assets",
+    "crates/kick-rs-cli",
 ]
 exclude = ["examples"]
 
@@ -15,17 +15,17 @@ exclude = ["examples"]
 edition      = "2021"
 rust-version = "1.78"
 license      = "MIT"
-repository   = "https://github.com/forinda/rustkick"
-authors      = ["The rustkick contributors"]
+repository   = "https://github.com/forinda/kick-rs"
+authors      = ["The kick-rs contributors"]
 
 [workspace.dependencies]
 # Framework crates — kept in lockstep at the workspace level so the
 # umbrella crate doesn't have to enumerate them with explicit versions.
-rustkick-core    = { path = "crates/rustkick-core",    version = "0.0.0" }
-rustkick-http    = { path = "crates/rustkick-http",    version = "0.0.0" }
-rustkick-macros  = { path = "crates/rustkick-macros",  version = "0.0.0" }
-rustkick-config  = { path = "crates/rustkick-config",  version = "0.0.0" }
-rustkick-assets  = { path = "crates/rustkick-assets",  version = "0.0.0" }
+kick-rs-core    = { path = "crates/kick-rs-core",    version = "0.0.0" }
+kick-rs-http    = { path = "crates/kick-rs-http",    version = "0.0.0" }
+kick-rs-macros  = { path = "crates/kick-rs-macros",  version = "0.0.0" }
+kick-rs-config  = { path = "crates/kick-rs-config",  version = "0.0.0" }
+kick-rs-assets  = { path = "crates/kick-rs-assets",  version = "0.0.0" }
 
 # Runtime + HTTP
 tokio       = { version = "1", features = ["full"] }
