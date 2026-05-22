@@ -1,0 +1,16 @@
+//! Handlers for the `{{module_name}}` module.
+
+use axum::Json;
+use serde::Serialize;
+
+/// Demo response shape — replace with your own.
+#[derive(Debug, Serialize)]
+pub struct IndexResponse {
+    pub message: String,
+}
+
+pub async fn index() -> Json<IndexResponse> {
+    Json(IndexResponse {
+        message: "{{module_name}} index — replace me".to_owned(),
+    })
+}

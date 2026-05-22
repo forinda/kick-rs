@@ -1,17 +1,18 @@
 //! `cargo kick` — companion CLI for the [`kick-rs`](https://crates.io/crates/kick-rs)
-//! framework. Currently ships one subcommand:
+//! framework. Currently ships:
 //!
-//! - `new <name>` — scaffold a fresh kick-rs project
+//! - `new <name>`           — scaffold a fresh kick-rs project
+//! - `g module <name>`      — generate a module skeleton in the current project
 //!
-//! Future subcommands (`dev`, `g`, `add`, `info`, `check`) land in
-//! later phases; see SPEC.md §7.
+//! Future subcommands (`g service`, `g contributor`, `dev`, `add`,
+//! `info`, `check`) land in later phases; see SPEC.md §7.
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
 //! invoking `cargo kick <args>` runs us with `args[1] == "kick"`. We
 //! strip that prefix below before handing off to clap.
 
 use clap::{Parser, Subcommand};
-use kick_rs_cli::new;
+use kick_rs_cli::{generate, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -45,6 +46,33 @@ enum Command {
         #[arg(long)]
         force: bool,
     },
+
+    /// Generate code into an existing project (`g` is a shortcut).
+    #[command(alias = "g")]
+    Generate {
+        #[command(subcommand)]
+        kind: Generate,
+    },
+}
+
+#[derive(Subcommand)]
+enum Generate {
+    /// Generate a new module skeleton (`mod.rs` + `handlers.rs`) and
+    /// register it in `src/modules/mod.rs`.
+    Module {
+        /// Module name. Must be a Rust identifier: lowercase letters,
+        /// digits, and underscores only (hyphens disallowed).
+        name: String,
+
+        /// Override the project root. Defaults to walking up from
+        /// the current directory.
+        #[arg(long)]
+        path: Option<PathBuf>,
+
+        /// Overwrite existing files inside the module directory.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -74,6 +102,27 @@ fn main() -> ExitCode {
                 Ok(dest) => {
                     println!("✓ created kick-rs project at {}", dest.display());
                     println!("  next: cd {} && cargo run", dest.display());
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Generate {
+            kind: Generate::Module { name, path, force },
+        } => {
+            let args = generate::GenerateModuleArgs {
+                name: name.clone(),
+                project_root: path,
+                force,
+            };
+            match generate::generate_module(&args) {
+                Ok(dir) => {
+                    println!("✓ generated module at {}", dir.display());
+                    println!("  next: register it in main.rs via");
+                    println!("        .module(modules::{name}::define())");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {

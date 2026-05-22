@@ -53,10 +53,36 @@ Flags:
 - `--path <PATH>` — write into a different directory (defaults to `./<name>`).
 - `--force` — write into an existing directory. Existing files inside are NOT removed.
 
+### `cargo kick g module <name>`
+
+Generates a new module skeleton inside an existing kick-rs project:
+
+```bash
+cd my-app
+cargo kick g module posts
+# ✓ generated module at .../my-app/src/modules/posts
+#   next: register it in main.rs via
+#         .module(modules::posts::define())
+```
+
+Emits `src/modules/<name>/{mod.rs,handlers.rs}` and idempotently
+appends `pub mod <name>;` to `src/modules/mod.rs`. The project root
+is auto-detected by walking up from `cwd` until `src/modules/mod.rs`
+is found.
+
+Module names must be valid Rust identifiers: lowercase letters /
+digits / underscores, starting with a letter. Hyphens are
+rejected (Rust modules can't have them).
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--force` — overwrite existing files inside the module directory.
+
 ## Status
 
-Scaffolding-only today. Planned subcommands (`dev`, `g`, `add`,
-`info`, `check`) land in later phases.
+`new` and `g module` today. Planned: `g service`, `g contributor`,
+`dev`, `add`, `info`, `check`.
 
 ## License
 
