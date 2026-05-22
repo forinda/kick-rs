@@ -1,21 +1,22 @@
 //! sqlx-backed repository for the `users` table.
 
 use super::model::User;
+use kick_rs::service;
 use sqlx::PgPool;
-use std::sync::Arc;
 use uuid::Uuid;
 
 /// All DB access for users flows through this struct. Held in DI as a
 /// singleton; cheap to clone (an Arc<PgPool> internally).
+///
+/// `#[service]` derives `ServiceImpl` so the module can register it
+/// with `.service::<UserRepository>()` — the `pool` field is resolved
+/// from the container automatically.
+#[service]
 pub struct UserRepository {
     pool: Arc<PgPool>,
 }
 
 impl UserRepository {
-    pub fn new(pool: Arc<PgPool>) -> Self {
-        Self { pool }
-    }
-
     pub async fn find_all(&self) -> Result<Vec<User>, sqlx::Error> {
         sqlx::query_as::<_, User>(
             "SELECT id, email, name, created_at, updated_at \

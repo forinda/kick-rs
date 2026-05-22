@@ -138,6 +138,21 @@ impl ModuleBuilder {
         self
     }
 
+    /// Bind a type that implements [`ServiceImpl`](crate::ServiceImpl).
+    /// The `#[service]` proc-macro from `kick-rs-macros` generates the
+    /// `ServiceImpl` impl from a struct declaration; hand-written impls
+    /// also work.
+    ///
+    /// ```ignore
+    /// #[service]
+    /// pub struct UserService { repo: Inject<UserRepository> }
+    ///
+    /// define_module("users").service::<UserService>().build()
+    /// ```
+    pub fn service<T: crate::ServiceImpl>(self) -> Self {
+        self.service_factory::<T, _>(T::build)
+    }
+
     /// Bind a lazily-constructed singleton.
     pub fn service_factory<T, F>(mut self, factory: F) -> Self
     where

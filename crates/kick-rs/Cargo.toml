@@ -9,16 +9,19 @@ repository.workspace   = true
 authors.workspace      = true
 readme      = "README.md"
 
-# Optional features for the auxiliary crates (kick-rs-macros / -config /
-# -assets) are intentionally not declared here yet. Those crates carry
-# `publish = false` until their implementations land, and an optional
-# dep on a non-published crate would block this umbrella from being
-# published itself. The features will be restored as each underlying
-# crate becomes publishable:
-#   * `macros`  — Phase 3, when proc-macros land
-#   * `config`  — Phase 5, when env loader lands
-#   * `assets`  — Phase 5, when asset manifest lands
+[features]
+default = []
+# Re-exports `#[service]` (and friends) from `kick-rs-macros`. Opt-in
+# because adopters who want the bare builder API don't need the
+# proc-macro compile overhead.
+macros = ["dep:kick-rs-macros"]
+
+# The `config` and `assets` features are still parked — they'll land
+# when `kick-rs-config` / `kick-rs-assets` reach publish-ready state
+# (Phase 5). Adopters who need them early can depend on those crates
+# directly via git.
 
 [dependencies]
-kick-rs-core = { workspace = true }
-kick-rs-http = { workspace = true }
+kick-rs-core   = { workspace = true }
+kick-rs-http   = { workspace = true }
+kick-rs-macros = { workspace = true, optional = true }
