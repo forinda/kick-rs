@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs"
-version     = "0.1.0-alpha.2"
+version     = "0.1.0-alpha.3"
 description = "Module-driven web framework for Rust — a port of KickJS on axum"
 edition.workspace      = true
 rust-version.workspace = true

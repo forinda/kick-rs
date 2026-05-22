@@ -24,7 +24,7 @@ authors      = ["The kick-rs contributors"]
 kick-rs-core    = { path = "crates/kick-rs-core", version = "0.1.0-alpha.2" }
 kick-rs-http    = { path = "crates/kick-rs-http", version = "0.1.0-alpha.2" }
 kick-rs-macros  = { path = "crates/kick-rs-macros", version = "0.1.0-alpha.2" }
-kick-rs-config  = { path = "crates/kick-rs-config",  version = "0.1.0-alpha.1" }
+kick-rs-config  = { path = "crates/kick-rs-config", version = "0.1.0-alpha.2" }
 kick-rs-assets  = { path = "crates/kick-rs-assets",  version = "0.0.0" }
 
 # Runtime + HTTP
