@@ -51,4 +51,24 @@ pub trait HttpPlugin: Plugin {
     fn http_modules(&self) -> Vec<HttpModule> {
         Vec::new()
     }
+
+    /// Phase-keyword middleware this plugin contributes. See
+    /// [`MiddlewarePhase`](crate::MiddlewarePhase) for the four phase
+    /// keywords and the order in which they wrap the router.
+    ///
+    /// ```ignore
+    /// fn middleware(&self) -> Vec<MiddlewareEntry> {
+    ///     vec![
+    ///         MiddlewareEntry::from_async_fn(MiddlewarePhase::BeforeGlobal,
+    ///             |req, next| async move {
+    ///                 let mut res = next.run(req).await;
+    ///                 res.headers_mut().insert("x-served-by", "kick-rs".parse().unwrap());
+    ///                 res
+    ///             }),
+    ///     ]
+    /// }
+    /// ```
+    fn middleware(&self) -> Vec<crate::MiddlewareEntry> {
+        Vec::new()
+    }
 }

@@ -206,18 +206,30 @@ impl Bootstrap {
             router = m.mount_onto(router);
         }
 
-        // 5a. Install the contributor middleware FIRST so it ends up
-        //     INNER in axum's layer stack. axum applies the last-added
-        //     layer as the outermost wrapper, so on the request path:
-        //         Extension(Container)  ← outermost (inserts container)
-        //             ↓
-        //         contributors_middleware  ← sees container in extensions,
-        //                                    runs pipeline, inserts store
-        //             ↓
-        //         handler  ← sees both
-        //     Reversing the order would have the middleware fire before
-        //     the Extension inserts the container — which is exactly the
-        //     bug that produced 500s before this swap landed.
+        // 5a. Phase-keyword middleware from http_plugins. Aggregate
+        //     across every HttpPlugin, bucket by phase, then apply in
+        //     reverse request-flow order (innermost first) since axum
+        //     stacks each .layer() as the new outermost wrapper.
+        let mut all_mw: Vec<crate::MiddlewareEntry> = Vec::new();
+        for hp in &http_plugins {
+            all_mw.extend(hp.middleware());
+        }
+        let buckets = crate::middleware::group_by_phase(all_mw);
+
+        // Innermost first.
+        for mw in buckets.after_routes {
+            router = mw.apply(router);
+        }
+        for mw in buckets.before_routes {
+            router = mw.apply(router);
+        }
+
+        // 5b. Framework layers — between the per-route phases and the
+        //     global phases. Order matters: contributor middleware
+        //     reads the container, so Extension(Container) must wrap
+        //     OUTSIDE it. With axum's last-added-outermost rule that
+        //     means: install contributor middleware first, then the
+        //     Extension layer.
         if !pipeline.is_empty() {
             let pipeline_for_layer = Arc::clone(&pipeline);
             router = router.layer(axum::middleware::from_fn(move |req, next| {
@@ -225,11 +237,16 @@ impl Bootstrap {
                 async move { crate::contributors_middleware(p, req, next).await }
             }));
         }
-
-        // 5b. Install Extension(Container) LAST so it wraps outermost
-        //     and the container is in request extensions before the
-        //     contributors middleware needs it.
         router = router.layer(Extension(container.clone()));
+
+        // 5c. Global-phase middleware on top of framework. AfterGlobal
+        //     inner, BeforeGlobal outermost.
+        for mw in buckets.after_global {
+            router = mw.apply(router);
+        }
+        for mw in buckets.before_global {
+            router = mw.apply(router);
+        }
 
         Ok((
             router,
@@ -751,5 +768,112 @@ mod tests {
         let m = define_module("broken").contribute(WantsTenant).build();
         let err = bootstrap().module(m).into_router().unwrap_err();
         assert_eq!(err.code, "RK_E_MISSING_CONTRIBUTOR");
+    }
+
+    // ── Phase-keyword middleware from HttpPlugin ─────────────────────────────
+
+    use crate::{MiddlewareEntry, MiddlewarePhase};
+
+    /// Plugin that appends a phase tag to a header per request, proving
+    /// middleware ordering. Headers accumulate in `X-Phase-Log` like
+    /// "BG,AG,BR,AR,handler,AR,BR,AG,BG" on the round-trip — request
+    /// phase order on the way in, response on the way out.
+    struct PhaseLogPlugin;
+
+    impl Plugin for PhaseLogPlugin {
+        fn name(&self) -> &str {
+            "phase-log"
+        }
+    }
+
+    fn log_middleware(
+        tag: &'static str,
+    ) -> impl Fn(
+        axum::extract::Request,
+        axum::middleware::Next,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = axum::response::Response> + Send>,
+    > + Clone
+           + Send
+           + Sync
+           + 'static {
+        move |mut req, next| {
+            Box::pin(async move {
+                // Append tag on the way in.
+                let in_log = req
+                    .headers()
+                    .get("x-in-log")
+                    .and_then(|h| h.to_str().ok())
+                    .map(|s| format!("{s},{tag}"))
+                    .unwrap_or_else(|| tag.to_owned());
+                req.headers_mut()
+                    .insert("x-in-log", in_log.parse().unwrap());
+                let mut res = next.run(req).await;
+                // Append tag on the way out.
+                let out_log = res
+                    .headers()
+                    .get("x-out-log")
+                    .and_then(|h| h.to_str().ok())
+                    .map(|s| format!("{s},{tag}"))
+                    .unwrap_or_else(|| tag.to_owned());
+                res.headers_mut()
+                    .insert("x-out-log", out_log.parse().unwrap());
+                res
+            })
+        }
+    }
+
+    impl crate::HttpPlugin for PhaseLogPlugin {
+        fn http_modules(&self) -> Vec<HttpModule> {
+            async fn echo_in_log(
+                axum::extract::Request { .. }: axum::extract::Request,
+            ) -> axum::response::Response {
+                // We can't easily read headers in a `Request` extractor
+                // signature like this — use a typed alternative.
+                axum::response::Response::new(axum::body::Body::from("ok"))
+            }
+            vec![define_module("phase-log").get("/ping", echo_in_log).build()]
+        }
+        fn middleware(&self) -> Vec<MiddlewareEntry> {
+            vec![
+                MiddlewareEntry::from_async_fn(MiddlewarePhase::BeforeGlobal, log_middleware("BG")),
+                MiddlewareEntry::from_async_fn(MiddlewarePhase::AfterGlobal, log_middleware("AG")),
+                MiddlewareEntry::from_async_fn(MiddlewarePhase::BeforeRoutes, log_middleware("BR")),
+                MiddlewareEntry::from_async_fn(MiddlewarePhase::AfterRoutes, log_middleware("AR")),
+            ]
+        }
+    }
+
+    #[tokio::test]
+    async fn http_plugin_middleware_runs_in_phase_order() {
+        let (router, _) = bootstrap()
+            .http_plugin(PhaseLogPlugin)
+            .into_router()
+            .unwrap();
+
+        let res = router
+            .oneshot(Request::get("/ping").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+
+        assert_eq!(res.status(), StatusCode::OK);
+
+        // Request entered through layers outermost-first. The
+        // outermost layer adds its tag first, so x-out-log on the
+        // response (which captures the order each layer ran on the
+        // response *after* next.run) should be:
+        //     BG,AG,BR,AR   (innermost runs first on the way out,
+        //                    outermost adds last → BG appears last
+        //                    when concatenated)
+        // Wait — actually layers stack. Outermost runs first on
+        // request; on response, innermost finishes first. So x-out-log
+        // appended in order: innermost (AR) first, outermost (BG) last:
+        //     AR,BR,AG,BG
+        let out_log = res
+            .headers()
+            .get("x-out-log")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("");
+        assert_eq!(out_log, "AR,BR,AG,BG", "response-side tag order");
     }
 }
