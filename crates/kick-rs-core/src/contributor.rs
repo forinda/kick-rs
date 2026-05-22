@@ -364,6 +364,18 @@ impl ContributorPipeline {
     /// - `RK_E_DUPLICATE_CONTRIBUTOR` — two contributors produce the
     ///   same `Key` type.
     pub fn build(items: Vec<AnyContributor>) -> KickResult<Self> {
+        Self::build_with_ambient(items, &[])
+    }
+
+    /// Like [`Self::build`] but accepts a set of *ambient* `TypeId`s —
+    /// types the framework guarantees to be present in the request
+    /// store before the pipeline runs (e.g. axum's `HeaderMap`, `Method`,
+    /// `Uri` injected by the HTTP middleware).
+    ///
+    /// A contributor may declare a dep on an ambient type without a
+    /// matching producer; the topo-sort treats it as "already
+    /// available".
+    pub fn build_with_ambient(items: Vec<AnyContributor>, ambient: &[TypeId]) -> KickResult<Self> {
         // Index produced TypeId -> position in items.
         let mut produced_by: HashMap<TypeId, usize> = HashMap::new();
         for (i, item) in items.iter().enumerate() {
@@ -389,6 +401,12 @@ impl ContributorPipeline {
 
         for (consumer_idx, item) in items.iter().enumerate() {
             for dep_ty in item.requires() {
+                // Ambient types (e.g. HeaderMap injected by HTTP
+                // middleware) satisfy the dep without an explicit
+                // producer in the pipeline.
+                if ambient.contains(&dep_ty) {
+                    continue;
+                }
                 let Some(&producer_idx) = produced_by.get(&dep_ty) else {
                     return Err(KickError::new(
                         "RK_E_MISSING_CONTRIBUTOR",

@@ -1,0 +1,20 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kick-rs-multi-tenant-db
+    environment:
+      POSTGRES_USER:     mt
+      POSTGRES_PASSWORD: mt
+      POSTGRES_DB:       multi_tenant
+    ports:
+      - "5433:5432"   # different host port from users-api so both demos can run
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U mt -d multi_tenant"]
+      interval: 2s
+      timeout:  3s
+      retries:  20
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+volumes:
+  db-data:
