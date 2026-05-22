@@ -24,15 +24,15 @@ That's it. Everything below is the why + the failure modes.
 **Independent versioning per crate**, mirroring `tokio-*` and `tower-*`.
 `kick-rs-core` 0.2.0 can ship while `kick-rs-http` stays at 0.1.3.
 
-| Crate                | Releasable today | Reason                                   |
-|----------------------|------------------|------------------------------------------|
-| `kick-rs-core`      | yes              | Real impl, 36 tests passing              |
-| `kick-rs-http`      | yes              | Real impl, 9 tests passing               |
-| `kick-rs`           | yes              | Thin umbrella over the two above         |
-| `kick-rs-macros`    | **no**           | Pass-through `todo!()` placeholders      |
-| `kick-rs-config`    | **no**           | Placeholder                              |
-| `kick-rs-assets`    | **no**           | Placeholder                              |
-| `kick-rs-cli`       | **no**           | Placeholder binary                       |
+| Crate              | Releasable today | Reason                                          |
+|--------------------|------------------|-------------------------------------------------|
+| `kick-rs-core`     | yes              | Real impl, 36 tests passing                     |
+| `kick-rs-http`     | yes              | Real impl, 9 tests passing                      |
+| `kick-rs-macros`   | yes              | `#[service]` proc-macro, 5 integration tests    |
+| `kick-rs`          | yes              | Thin umbrella; `macros` feature opt-in          |
+| `kick-rs-config`   | **no**           | Placeholder                                     |
+| `kick-rs-assets`   | **no**           | Placeholder                                     |
+| `kick-rs-cli`      | **no**           | Placeholder binary                              |
 
 Placeholder crates carry `release = false` in
 [`release-plz.toml`](./release-plz.toml) **and** `publish = false` in

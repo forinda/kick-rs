@@ -24,7 +24,7 @@ pub use kick_rs_core::{
     BuildContext, Container, ContainerBuilder, ContextContributor, Introspect, IntrospectionKind,
     IntrospectionSnapshot, KickError, KickResult, Module as CoreModule,
     ModuleBuilder as CoreModuleBuilder, Plugin, PluginDef, PluginFactory, ProviderSpec, Scope,
-    Token,
+    ServiceImpl, Token,
 };
 
 // ── HTTP (the default user-facing surface) ─────────────────────────────
@@ -39,9 +39,14 @@ pub use kick_rs_http::{
 pub use kick_rs_http::HttpModule as Module;
 pub use kick_rs_http::HttpModuleBuilder as ModuleBuilder;
 
-// The `macros` / `config` / `assets` re-exports will return here once
-// the underlying crates become publishable. Until then, depending on
-// them would block the umbrella crate from publishing (cargo refuses
-// to publish a crate with an optional dep that isn't on crates.io).
-// Adopters who need them today can depend on the auxiliary crates
-// directly via the git URL. Tracked in SPEC.md §11.
+// ── Opt-in proc-macros (feature = "macros") ────────────────────────────
+//
+// Re-exports `#[service]` (and any future proc-macros) from
+// `kick-rs-macros`. Adopters opt in via:
+//   kick-rs = { version = "0.0", features = ["macros"] }
+//
+// The `config` and `assets` re-exports will return once those crates
+// reach publish-ready state (Phase 5). Adopters who need them earlier
+// can depend on them directly via git.
+#[cfg(feature = "macros")]
+pub use kick_rs_macros::*;

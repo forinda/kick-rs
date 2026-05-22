@@ -21,6 +21,7 @@ pub mod module;
 pub mod mount_sort;
 pub mod plugin;
 pub mod scope;
+pub mod service_impl;
 pub mod token;
 
 pub use adapter::{
@@ -33,4 +34,5 @@ pub use introspect::{Introspect, IntrospectionKind, IntrospectionSnapshot};
 pub use module::{define_module, Module, ModuleBuilder, ProviderSpec};
 pub use plugin::{define_plugin, Plugin, PluginDef, PluginFactory};
 pub use scope::Scope;
+pub use service_impl::ServiceImpl;
 pub use token::Token;

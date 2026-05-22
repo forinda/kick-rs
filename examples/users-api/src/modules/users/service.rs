@@ -5,7 +5,7 @@
 use super::model::{CreateUser, UpdateUser, User};
 use super::repository::UserRepository;
 use chrono::Utc;
-use std::sync::Arc;
+use kick_rs::service;
 use uuid::Uuid;
 
 /// Service-layer errors. Kept simple — handler layer maps to HTTP.
@@ -19,15 +19,12 @@ pub enum UserError {
     Db(#[from] sqlx::Error),
 }
 
+#[service]
 pub struct UserService {
     repo: Arc<UserRepository>,
 }
 
 impl UserService {
-    pub fn new(repo: Arc<UserRepository>) -> Self {
-        Self { repo }
-    }
-
     pub async fn list(&self) -> Result<Vec<User>, UserError> {
         Ok(self.repo.find_all().await?)
     }

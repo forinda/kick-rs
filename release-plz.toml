@@ -55,6 +55,10 @@ git_tag_name = "kick-rs-http-v{{ version }}"
 name = "kick-rs"
 git_tag_name = "kick-rs-v{{ version }}"
 
+[[package]]
+name = "kick-rs-macros"
+git_tag_name = "kick-rs-macros-v{{ version }}"
+
 # ── Gated (placeholders, not yet ready to publish) ───────────────────────
 #
 # These crates carry `publish = false` in their Cargo.toml. release-plz
@@ -62,11 +66,6 @@ git_tag_name = "kick-rs-v{{ version }}"
 # release-plz config must explicitly acknowledge that. Otherwise the
 # `release-publish` job aborts with a config-mismatch error before doing
 # anything useful.
-
-[[package]]
-name = "kick-rs-macros"
-release = false              # Phase 3 — flip when proc-macros land
-publish = false              # mirrors crates/kick-rs-macros/Cargo.toml
 
 [[package]]
 name = "kick-rs-config"

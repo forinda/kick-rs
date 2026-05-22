@@ -117,6 +117,13 @@ impl HttpModuleBuilder {
         self
     }
 
+    /// Bind a type that implements [`ServiceImpl`](kick_rs_core::ServiceImpl).
+    /// Forwarded straight to [`ModuleBuilder::service`](kick_rs_core::ModuleBuilder::service).
+    pub fn service<T: kick_rs_core::ServiceImpl>(mut self) -> Self {
+        self.core = self.core.service::<T>();
+        self
+    }
+
     /// Bind a singleton constructed lazily via a closure.
     pub fn service_factory<T, F>(mut self, factory: F) -> Self
     where
