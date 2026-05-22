@@ -32,12 +32,15 @@ openapi = ["kick-rs-http/openapi"]
 # — two opt-ins by design.
 devtools = ["kick-rs-http/devtools"]
 
-# `assets` is still parked — lands once `kick-rs-assets` reaches
-# publish-ready state. Adopters needing it early can depend on the
-# crate directly.
+# Re-exports the `kick-rs-assets` crate (`AssetManifest` + the
+# `embed_assets!` compile-time bundling macro). Opt-in because the
+# `embed` machinery from `include_dir` adds noticeable build time
+# adopters not bundling static assets don't need.
+assets = ["dep:kick-rs-assets"]
 
 [dependencies]
 kick-rs-core   = { workspace = true }
 kick-rs-http   = { workspace = true }
 kick-rs-macros = { workspace = true, optional = true }
 kick-rs-config = { workspace = true, optional = true }
+kick-rs-assets = { workspace = true, optional = true }
