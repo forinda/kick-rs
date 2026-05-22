@@ -10,6 +10,16 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.1](https://github.com/forinda/kick-rs/compare/kick-rs-macros-v0.0.2...kick-rs-macros-v0.1.0-alpha.1) - 2026-05-22
+
+### Added
+
+- *(macros,http)* route attribute macros (#[get]/#[post]/...) + .handler()
+
+### Other
+
+- [**breaking**] bump to 0.1.0-alpha.1
+
 ## [0.0.2](https://github.com/forinda/kick-rs/compare/kick-rs-macros-v0.0.1...kick-rs-macros-v0.0.2) - 2026-05-22
 
 ### Added
