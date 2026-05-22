@@ -41,12 +41,14 @@ All four are enabled by default. Disable any subset with
 kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features = ["plugin-request-id"] }
 ```
 
-| Plugin                | Feature gate           | Phase           | What it does                                                                  |
-|-----------------------|------------------------|-----------------|-------------------------------------------------------------------------------|
-| `RequestIdPlugin`     | `plugin-request-id`    | `BeforeGlobal`  | Reads inbound `X-Request-Id` or generates UUIDv7; mirrors to response header  |
-| `RequestLoggerPlugin` | `plugin-request-logger`| `AfterGlobal`   | Emits one `tracing::info!` per request (method/path/status/elapsed_us)        |
-| `CorsPlugin`          | `plugin-cors`          | `BeforeGlobal`  | Wraps `tower_http::cors::CorsLayer` (`::permissive()` / `::with_layer(...)`)  |
-| `CompressionPlugin`   | `plugin-compression`   | `AfterGlobal`   | gzip / br / deflate / zstd response compression via `tower_http`              |
+| Plugin                | Feature gate            | Phase           | What it does                                                                          |
+|-----------------------|-------------------------|-----------------|---------------------------------------------------------------------------------------|
+| `RequestIdPlugin`     | `plugin-request-id`     | `BeforeGlobal`  | Reads inbound `X-Request-Id` or generates UUIDv7; mirrors to response header          |
+| `RequestLoggerPlugin` | `plugin-request-logger` | `AfterGlobal`   | Emits one `tracing::info!` per request (method/path/status/elapsed_us)                |
+| `CorsPlugin`          | `plugin-cors`           | `BeforeGlobal`  | Wraps `tower_http::cors::CorsLayer` (`::permissive()` / `::with_layer(...)`)          |
+| `CompressionPlugin`   | `plugin-compression`    | `AfterGlobal`   | gzip / br / deflate / zstd response compression via `tower_http`                      |
+| `HelmetPlugin`        | `plugin-helmet`         | `BeforeGlobal`  | Baseline security headers (nosniff, frame-deny, HSTS, referrer-policy, COOP/CORP, …)  |
+| `TraceContextPlugin`  | `plugin-trace-context`  | `BeforeGlobal`  | W3C `traceparent` parsing + propagation; exposes `TraceContext` extension             |
 
 Mount with `bootstrap().http_plugin(RequestIdPlugin::default())`.
 
