@@ -1,16 +1,27 @@
 [package]
 name        = "kick-rs-assets"
-version     = "0.0.0"
-description = "Typed asset manifest + cache-busting resolver for kick-rs"
-# Placeholder body. Gated until Phase 5. See RELEASE.md.
-publish     = false
+version     = "0.1.0-alpha.1"
+description = "Typed asset manifest + compile-time embedding for kick-rs"
+readme      = "README.md"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
 repository.workspace   = true
 authors.workspace      = true
 
+[features]
+default = ["embed"]
+# `embed` pulls in `include_dir`, which adds a few hundred KB of
+# compile time. Off-by-... wait, we keep it default-on because most
+# adopters want bundled assets; opt out via default-features = false
+# if you only need the manifest loader.
+embed = ["dep:include_dir"]
+
 [dependencies]
 kick-rs-core = { workspace = true }
-serde         = { workspace = true }
-serde_json    = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+include_dir  = { version = "0.7", optional = true }
+
+[dev-dependencies]
+tempfile = "3"

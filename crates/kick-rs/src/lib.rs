@@ -81,3 +81,10 @@ pub use kick_rs_http::devtools;
 // `kick-rs-config` surface under `kick_rs::config`.
 #[cfg(feature = "config")]
 pub use kick_rs_config as config;
+
+// ── Opt-in static-assets (feature = "assets") ──────────────────────────
+//
+// `AssetManifest` + the `embed_assets!` compile-time bundling macro.
+// Exposes the entire `kick-rs-assets` surface under `kick_rs::assets`.
+#[cfg(feature = "assets")]
+pub use kick_rs_assets as assets;
