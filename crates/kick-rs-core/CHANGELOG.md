@@ -10,6 +10,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3](https://github.com/forinda/kick-rs/compare/kick-rs-core-v0.1.0-alpha.2...kick-rs-core-v0.1.0-alpha.3) - 2026-05-22
+
+### Added
+
+- *(devtools)* wire Introspect into the /__debug snapshot
+
 ## [0.1.0-alpha.2](https://github.com/forinda/kick-rs/compare/kick-rs-core-v0.1.0-alpha.1...kick-rs-core-v0.1.0-alpha.2) - 2026-05-22
 
 ### Other

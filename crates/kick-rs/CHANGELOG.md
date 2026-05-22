@@ -11,6 +11,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.5](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.4...kick-rs-v0.1.0-alpha.5) - 2026-05-22
+
+### Other
+
+- updated the following local packages: kick-rs-core, kick-rs-assets, kick-rs-http, kick-rs-config, kick-rs-macros
+
 ## [0.1.0-alpha.4](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.3...kick-rs-v0.1.0-alpha.4) - 2026-05-22
 
 ### Added
