@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-http"
-version     = "0.0.0"
+version     = "0.0.1"
 description = "axum integration for kick-rs — bootstrap, Inject<T>, Ctx, built-in plugins"
 readme      = "README.md"
 edition.workspace      = true

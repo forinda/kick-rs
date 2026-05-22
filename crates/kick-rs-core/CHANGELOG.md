@@ -9,3 +9,9 @@ Maintained automatically by [release-plz](https://release-plz.dev) from
 Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
+
+## [0.0.1](https://github.com/forinda/kick-rs/compare/kick-rs-core-v0.0.0...kick-rs-core-v0.0.1) - 2026-05-22
+
+### Added
+
+- *(macros)* #[service] proc-macro + ServiceImpl trait
