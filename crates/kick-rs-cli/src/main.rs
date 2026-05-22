@@ -1,12 +1,13 @@
 //! `cargo kick` — companion CLI for the [`kick-rs`](https://crates.io/crates/kick-rs)
 //! framework. Currently ships:
 //!
-//! - `new <name>`                          — scaffold a fresh kick-rs project
-//! - `g module <name>`                     — generate a module skeleton in the current project
-//! - `g service <module>/<service_name>`   — generate a `#[service]`-derived stub in an existing module
+//! - `new <name>`                               — scaffold a fresh kick-rs project
+//! - `g module <name>`                          — generate a module skeleton
+//! - `g service <module>/<service_name>`        — generate a `#[service]`-derived stub
+//! - `g contributor <module>/<contributor>`     — generate a `#[contributor]` async fn
 //!
-//! Future subcommands (`g contributor`, `dev`, `add`, `info`, `check`)
-//! land in later phases; see SPEC.md §7.
+//! Future subcommands (`dev`, `add`, `info`, `check`) land in later
+//! phases; see SPEC.md §7.
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
 //! invoking `cargo kick <args>` runs us with `args[1] == "kick"`. We
@@ -90,6 +91,23 @@ enum Generate {
         #[arg(long)]
         force: bool,
     },
+
+    /// Generate a `#[contributor]` async fn (plus a stub Output struct)
+    /// inside an existing module. Spec is `<module>/<contributor_name>`,
+    /// e.g. `users/load_current_user`.
+    Contributor {
+        /// `<module>/<contributor_name>` spec (both halves must be
+        /// valid snake_case identifiers).
+        spec: String,
+
+        /// Override the project root.
+        #[arg(long)]
+        path: Option<PathBuf>,
+
+        /// Overwrite the contributor file if it already exists.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn main() -> ExitCode {
@@ -140,6 +158,32 @@ fn main() -> ExitCode {
                     println!("✓ generated module at {}", dir.display());
                     println!("  next: register it in main.rs via");
                     println!("        .module(modules::{name}::define())");
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Generate {
+            kind: Generate::Contributor { spec, path, force },
+        } => {
+            let args = generate::GenerateContributorArgs {
+                spec: spec.clone(),
+                project_root: path,
+                force,
+            };
+            match generate::generate_contributor(&args) {
+                Ok(file) => {
+                    let (module, snake) = spec.split_once('/').unwrap();
+                    let pascal = generate::to_pascal_case(snake);
+                    println!("✓ generated contributor at {}", file.display());
+                    println!("  next: register on the module's define() builder (or directly on");
+                    println!("        bootstrap()) — in src/modules/{module}/mod.rs add");
+                    println!("        use {snake}::{pascal};");
+                    println!("        ...");
+                    println!("        .contribute({pascal})");
                     ExitCode::SUCCESS
                 }
                 Err(e) => {

@@ -105,10 +105,35 @@ Flags:
 - `--path <PATH>` — override project-root detection.
 - `--force` — overwrite the service file if it already exists.
 
+### `cargo kick g contributor <module>/<name>`
+
+Generates a `#[contributor]`-derived stub inside an existing module:
+
+```bash
+cd my-app
+cargo kick g contributor users/load_current_user
+# ✓ generated contributor at .../src/modules/users/load_current_user.rs
+#   next: register on the module's define() builder (or directly on
+#         bootstrap()) — in src/modules/users/mod.rs add
+#         use load_current_user::LoadCurrentUser;
+#         ...
+#         .contribute(LoadCurrentUser)
+```
+
+Emits `src/modules/<module>/<name>.rs` with a `#[contributor]` async
+fn (PascalCase name derived from the snake_case file) and a stub
+`<Name>Out` output struct. Idempotently appends `pub mod <name>;` to
+the parent module's `mod.rs`.
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--force` — overwrite the contributor file if it already exists.
+
 ## Status
 
-`new`, `g module`, `g service` today. Planned: `g contributor`,
-`dev`, `add`, `info`, `check`.
+`new`, `g module`, `g service`, `g contributor` today. Planned: `dev`,
+`add`, `info`, `check`.
 
 ## License
 

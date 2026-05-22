@@ -7,6 +7,10 @@
 //! - `g service <module>/<name>` — emit
 //!   `src/modules/<module>/<name>.rs` containing a `#[service]`-derived
 //!   stub, and append `pub mod <name>;` to the parent module's `mod.rs`.
+//! - `g contributor <module>/<name>` — emit
+//!   `src/modules/<module>/<name>.rs` containing a `#[contributor]`
+//!   async fn + Output struct, and append `pub mod <name>;` to the
+//!   parent module's `mod.rs`.
 //!
 //! Project root is auto-detected by walking up from `cwd` until we
 //! find a directory containing `src/modules/mod.rs`. That single
@@ -50,7 +54,7 @@ impl std::fmt::Display for GenerateError {
             ),
             Self::InvalidSpec(s) => write!(
                 f,
-                "`{s}` is not a valid spec. Expected `<module>/<service_name>` (e.g. `users/email_sender`)."
+                "`{s}` is not a valid spec. Expected `<module>/<name>` (e.g. `users/email_sender`)."
             ),
             Self::ProjectRootNotFound(start) => write!(
                 f,
@@ -145,6 +149,9 @@ const HANDLERS_TMPL: &str = include_str!("../templates/generate/module/handlers.
 /// Service skeleton: 1 file.
 const SERVICE_TMPL: &str = include_str!("../templates/generate/service/file.rs.tmpl");
 
+/// Contributor skeleton: 1 file.
+const CONTRIBUTOR_TMPL: &str = include_str!("../templates/generate/contributor/file.rs.tmpl");
+
 /// Convert a snake_case identifier to PascalCase. Used to derive the
 /// service struct name from its file name (`email_sender` → `EmailSender`).
 ///
@@ -181,6 +188,12 @@ fn render_service(template: &str, snake: &str, pascal: &str) -> String {
     template
         .replace("{{service_snake}}", snake)
         .replace("{{service_pascal}}", pascal)
+}
+
+fn render_contributor(template: &str, snake: &str, pascal: &str) -> String {
+    template
+        .replace("{{contributor_snake}}", snake)
+        .replace("{{contributor_pascal}}", pascal)
 }
 
 /// Run the `g module <name>` flow.
@@ -257,26 +270,28 @@ pub struct GenerateServiceArgs {
     pub force: bool,
 }
 
-/// Split `<module>/<service_snake>` and validate each half.
-fn parse_service_spec(spec: &str) -> Result<(&str, &str), GenerateError> {
-    let (module, service) = spec
+/// Split `<module>/<name>` and validate each half. Shared by `g service`
+/// and `g contributor` — both expect the same shape (a module name and
+/// a snake_case item name inside it).
+fn parse_kind_spec(spec: &str) -> Result<(&str, &str), GenerateError> {
+    let (module, name) = spec
         .split_once('/')
         .ok_or_else(|| GenerateError::InvalidSpec(spec.to_owned()))?;
-    if module.is_empty() || service.is_empty() {
+    if module.is_empty() || name.is_empty() {
         return Err(GenerateError::InvalidSpec(spec.to_owned()));
     }
-    if service.contains('/') {
+    if name.contains('/') {
         return Err(GenerateError::InvalidSpec(spec.to_owned()));
     }
     validate_module_name(module)?;
-    validate_module_name(service)?;
-    Ok((module, service))
+    validate_module_name(name)?;
+    Ok((module, name))
 }
 
 /// Run the `g service <module>/<service_snake>` flow. Returns the
 /// path that was written.
 pub fn generate_service(args: &GenerateServiceArgs) -> Result<PathBuf, GenerateError> {
-    let (module, service_snake) = parse_service_spec(&args.spec)?;
+    let (module, service_snake) = parse_kind_spec(&args.spec)?;
     let service_pascal = to_pascal_case(service_snake);
 
     let root = match &args.project_root {
@@ -307,6 +322,54 @@ pub fn generate_service(args: &GenerateServiceArgs) -> Result<PathBuf, GenerateE
     ensure_pub_mod_line(&module_mod_rs, service_snake)?;
 
     Ok(service_file)
+}
+
+// ────────────────────────── g contributor ────────────────────────────
+
+/// Decoded form of the `g contributor` subcommand.
+pub struct GenerateContributorArgs {
+    /// `<module>/<contributor_snake>` spec.
+    pub spec: String,
+    /// Override the project root.
+    pub project_root: Option<PathBuf>,
+    /// Overwrite the contributor file if it already exists.
+    pub force: bool,
+}
+
+/// Run the `g contributor <module>/<contributor_snake>` flow. Returns
+/// the path that was written.
+pub fn generate_contributor(args: &GenerateContributorArgs) -> Result<PathBuf, GenerateError> {
+    let (module, snake) = parse_kind_spec(&args.spec)?;
+    let pascal = to_pascal_case(snake);
+
+    let root = match &args.project_root {
+        Some(p) => p.clone(),
+        None => find_project_root(Path::new("."))?,
+    };
+    let module_mod_rs = root.join("src/modules").join(module).join("mod.rs");
+    if !module_mod_rs.is_file() {
+        return Err(GenerateError::ModuleMissing(
+            root.join("src/modules").join(module),
+        ));
+    }
+
+    let file = root
+        .join("src/modules")
+        .join(module)
+        .join(format!("{snake}.rs"));
+    if file.exists() && !args.force {
+        return Err(GenerateError::FileExists(file));
+    }
+
+    let rendered = render_contributor(CONTRIBUTOR_TMPL, snake, &pascal);
+    fs::write(&file, rendered).map_err(|e| GenerateError::Io {
+        path: file.clone(),
+        source: e,
+    })?;
+
+    ensure_pub_mod_line(&module_mod_rs, snake)?;
+
+    Ok(file)
 }
 
 #[cfg(test)]
@@ -445,45 +508,42 @@ mod tests {
     }
 
     #[test]
-    fn parse_service_spec_splits_module_and_name() {
+    fn parse_kind_spec_splits_module_and_name() {
+        assert_eq!(parse_kind_spec("users/email").unwrap(), ("users", "email"));
         assert_eq!(
-            parse_service_spec("users/email").unwrap(),
-            ("users", "email")
-        );
-        assert_eq!(
-            parse_service_spec("users/email_sender").unwrap(),
+            parse_kind_spec("users/email_sender").unwrap(),
             ("users", "email_sender")
         );
     }
 
     #[test]
-    fn parse_service_spec_rejects_bad_shapes() {
+    fn parse_kind_spec_rejects_bad_shapes() {
         // No slash
         assert!(matches!(
-            parse_service_spec("emailsender").unwrap_err(),
+            parse_kind_spec("emailsender").unwrap_err(),
             GenerateError::InvalidSpec(_)
         ));
         // Empty halves
         assert!(matches!(
-            parse_service_spec("/email").unwrap_err(),
+            parse_kind_spec("/email").unwrap_err(),
             GenerateError::InvalidSpec(_)
         ));
         assert!(matches!(
-            parse_service_spec("users/").unwrap_err(),
+            parse_kind_spec("users/").unwrap_err(),
             GenerateError::InvalidSpec(_)
         ));
         // Nested slashes — we only support one-level nesting today.
         assert!(matches!(
-            parse_service_spec("users/sub/email").unwrap_err(),
+            parse_kind_spec("users/sub/email").unwrap_err(),
             GenerateError::InvalidSpec(_)
         ));
         // Bad identifier on either side cascades to InvalidName.
         assert!(matches!(
-            parse_service_spec("Users/email").unwrap_err(),
+            parse_kind_spec("Users/email").unwrap_err(),
             GenerateError::InvalidName(_)
         ));
         assert!(matches!(
-            parse_service_spec("users/Email").unwrap_err(),
+            parse_kind_spec("users/Email").unwrap_err(),
             GenerateError::InvalidName(_)
         ));
     }
@@ -593,6 +653,105 @@ mod tests {
         let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
         assert_eq!(
             mod_rs.matches("pub mod email_sender;").count(),
+            1,
+            "double-append on second generate: {mod_rs}"
+        );
+    }
+
+    // ────────────── g contributor ──────────────
+
+    #[test]
+    fn generate_contributor_writes_file_and_appends_module_mod() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+
+        let written = generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap();
+
+        assert_eq!(written, root.join("src/modules/users/load_current_user.rs"),);
+
+        let body = fs::read_to_string(&written).unwrap();
+        // PascalCase derived from snake_case for both the contributor
+        // fn and its output struct.
+        assert!(body.contains("pub async fn LoadCurrentUser("));
+        assert!(body.contains("pub struct LoadCurrentUserOut"));
+        // The macro-driven sugar shows up — adopters get a working
+        // skeleton that compiles after `cargo kick g`.
+        assert!(body.contains("#[contributor]"));
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert_eq!(
+            mod_rs.matches("pub mod load_current_user;").count(),
+            1,
+            "expected one append in module mod.rs: {mod_rs}"
+        );
+    }
+
+    #[test]
+    fn generate_contributor_refuses_when_parent_module_missing() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton(&root);
+
+        let err = generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap_err();
+        assert!(
+            matches!(err, GenerateError::ModuleMissing(_)),
+            "got {err:?}"
+        );
+    }
+
+    #[test]
+    fn generate_contributor_refuses_existing_file_without_force() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+        fs::write(
+            root.join("src/modules/users/load_current_user.rs"),
+            "// user wrote this",
+        )
+        .unwrap();
+
+        let err = generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap_err();
+        assert!(matches!(err, GenerateError::FileExists(_)), "got {err:?}");
+    }
+
+    #[test]
+    fn generate_contributor_force_keeps_append_idempotent() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().join("proj");
+        make_skeleton_with_module(&root, "users");
+
+        generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: false,
+        })
+        .unwrap();
+        generate_contributor(&GenerateContributorArgs {
+            spec: "users/load_current_user".into(),
+            project_root: Some(root.clone()),
+            force: true,
+        })
+        .unwrap();
+
+        let mod_rs = fs::read_to_string(root.join("src/modules/users/mod.rs")).unwrap();
+        assert_eq!(
+            mod_rs.matches("pub mod load_current_user;").count(),
             1,
             "double-append on second generate: {mod_rs}"
         );
