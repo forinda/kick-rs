@@ -9,8 +9,16 @@
 #     bumps + CHANGELOG updates, just skipping the publish step.
 #
 # Required repo permissions (already granted by `permissions:` below):
-#   * contents: write  — to push the release commit and tag
-#   * pull-requests: write — to open / update the Release PR
+#   * contents: write       — to push the release commit and tag
+#   * pull-requests: write  — to open / update the Release PR
+#
+# Workflow shape:
+#   One job, default command (`release-pr release`). The release-plz
+#   action figures out internally whether the current push is a regular
+#   commit (→ open / update the Release PR) or the merge commit of a
+#   Release PR (→ publish + tag). Splitting this into two jobs was
+#   redundant and caused the publish step to run on every main push
+#   instead of only on Release PR merges.
 #
 # See RELEASE.md for the full strategy.
 
@@ -45,36 +53,10 @@ jobs:
 
       - name: Run release-plz
         uses: release-plz/action@v0.5
-        with:
-          command: release-pr
-          # `release-pr` opens / updates the Release PR.
-          # The `release` command (publish + tag) runs in a separate
-          # job below — gated on the same workflow file but only fires
-          # for the release commit pushed by the Release PR merge.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-
-  release-publish:
-    name: release-publish (crates.io)
-    runs-on: ubuntu-latest
-    if: ${{ github.repository == 'forinda/rustkick' }}
-    needs: release-plz
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Publish + tag
-        uses: release-plz/action@v0.5
-        with:
-          command: release
+        # No `command:` input — defaults to "release-pr release", which
+        # opens/updates the Release PR on regular pushes and publishes
+        # on Release PR merge commits. The action no-ops the publish
+        # step gracefully when CARGO_REGISTRY_TOKEN isn't set.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
