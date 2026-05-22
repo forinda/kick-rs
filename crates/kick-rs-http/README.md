@@ -153,11 +153,20 @@ bootstrap()
   "framework": "kick-rs",
   "version":   "0.1.0-alpha.1",
   "modules":   [{ "name": "users", "prefix": "/users", "routes": 5, "sub_modules": [] }],
-  "plugins":   [{ "name": "request-id" }, { "name": "openapi" }],
+  "plugins":   [
+    { "name": "request-id", "state": { "header": "x-request-id", "id_format": "uuid-v7-or-passthrough" } },
+    { "name": "openapi" }
+  ],
   "adapters":  [],
   "contributors": { "count": 2 }
 }
 ```
+
+Plugins / adapters that implement `Introspect` (or override the
+default `introspect()` method on `Plugin` / `Adapter`) surface their
+state inline next to the entry — the snapshot's `state` JSON is
+embedded as-is. Components that don't opt in have no `state` key
+(it's `skip_serializing_if = "Option::is_none"`).
 
 The snapshot is serialized once at boot, so per-request cost is just
 a refcount bump and a string clone.

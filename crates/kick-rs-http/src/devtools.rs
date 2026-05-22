@@ -57,22 +57,31 @@ pub struct ModuleInfo {
     pub sub_modules: Vec<ModuleInfo>,
 }
 
-/// One plugin entry. Name only — plugins don't currently expose
-/// per-plugin state to DevTools.
+/// One plugin entry. Carries the name plus an optional free-form
+/// state field surfaced by [`Plugin::introspect`](kick_rs_core::Plugin::introspect).
 #[derive(Debug, Clone, Serialize)]
 pub struct PluginInfo {
     /// Plugin name from `Plugin::name()`.
     pub name: String,
+    /// Component-specific state from `Plugin::introspect()`. `None`
+    /// when the plugin doesn't opt in. Skipped from the JSON output
+    /// when `None` so the response stays compact for the common case.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<serde_json::Value>,
 }
 
-/// One adapter entry: name + declared `depends_on` for visual
-/// inspection of the mount order.
+/// One adapter entry: name, declared `depends_on`, and optional
+/// state from [`Adapter::introspect`](kick_rs_core::Adapter::introspect).
 #[derive(Debug, Clone, Serialize)]
 pub struct AdapterInfo {
     /// Adapter name from `Adapter::name()`.
     pub name: String,
     /// Other adapter names this one mounts after.
     pub depends_on: Vec<String>,
+    /// Component-specific state from `Adapter::introspect()`. Same
+    /// opt-in / skip-when-`None` rule as [`PluginInfo::state`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<serde_json::Value>,
 }
 
 /// Contributor pipeline summary. Keeping it to a count for now —
@@ -109,16 +118,19 @@ pub(crate) fn build_snapshot(
         .iter()
         .map(|p| PluginInfo {
             name: p.name().to_owned(),
+            state: p.introspect().map(|snap| snap.state),
         })
         .collect();
     plugin_infos.extend(http_plugins.iter().map(|p| PluginInfo {
         name: p.name().to_owned(),
+        state: p.introspect().map(|snap| snap.state),
     }));
     let adapters = adapters
         .iter()
         .map(|a| AdapterInfo {
             name: a.name().to_owned(),
             depends_on: a.depends_on().iter().map(|s| s.to_string()).collect(),
+            state: a.introspect().map(|snap| snap.state),
         })
         .collect();
     DebugSnapshot {
@@ -231,5 +243,72 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[cfg(feature = "plugin-request-id")]
+    #[tokio::test]
+    async fn snapshot_includes_introspect_state_for_opted_in_plugin() {
+        use crate::plugins::request_id::RequestIdPlugin;
+
+        let m = define_module("g").get("/x", root).build();
+        let (router, _) = bootstrap()
+            .module(m)
+            .http_plugin(RequestIdPlugin)
+            .with_devtools()
+            .into_router()
+            .unwrap();
+
+        let res = router
+            .oneshot(Request::get("/__debug").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK);
+        let body = axum::body::to_bytes(res.into_body(), 65536).await.unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        // Find the request-id plugin in the snapshot and check its
+        // state payload landed inline.
+        let plugins = parsed["plugins"].as_array().expect("plugins is array");
+        let entry = plugins
+            .iter()
+            .find(|p| p["name"] == "request-id")
+            .expect("request-id plugin should appear in the snapshot");
+        assert_eq!(entry["state"]["header"], "x-request-id");
+        assert_eq!(entry["state"]["id_format"], "uuid-v7-or-passthrough");
+    }
+
+    #[tokio::test]
+    async fn snapshot_skips_state_for_plugins_that_dont_opt_in() {
+        // Build a tiny plugin that doesn't override introspect() —
+        // the default impl returns None, so the JSON `state` field
+        // should be omitted entirely (#[serde(skip_serializing_if)]).
+        struct Silent;
+        impl kick_rs_core::Plugin for Silent {
+            fn name(&self) -> &str {
+                "silent"
+            }
+        }
+
+        let m = define_module("g").get("/x", root).build();
+        let (router, _) = bootstrap()
+            .module(m)
+            .plugin(Silent)
+            .with_devtools()
+            .into_router()
+            .unwrap();
+
+        let res = router
+            .oneshot(Request::get("/__debug").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        let body = axum::body::to_bytes(res.into_body(), 65536).await.unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+        let entry = parsed["plugins"]
+            .as_array()
+            .and_then(|a| a.iter().find(|p| p["name"] == "silent"))
+            .expect("silent plugin should be in the snapshot");
+        // skip_serializing_if = "Option::is_none" — no `state` key at all.
+        assert!(entry.get("state").is_none(), "got: {entry}");
     }
 }

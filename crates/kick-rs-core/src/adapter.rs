@@ -61,6 +61,17 @@ pub trait Adapter: Send + Sync + 'static {
     fn contributors(&self) -> Vec<crate::AnyContributor> {
         Vec::new()
     }
+
+    /// Optional state snapshot for DevTools / `cargo kick info`.
+    /// Returning `Some(...)` enrolls this adapter in the
+    /// `/__debug` introspection endpoint — the snapshot's `state`
+    /// JSON shows up inline next to the adapter entry.
+    ///
+    /// Default `None` keeps adapters opted out by default so adopters
+    /// don't accidentally leak internals to DevTools just by upgrading.
+    fn introspect(&self) -> Option<crate::IntrospectionSnapshot> {
+        None
+    }
 }
 
 /// Context passed to every adapter hook. Carries a read-side

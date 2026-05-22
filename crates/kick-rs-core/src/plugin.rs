@@ -27,6 +27,7 @@ use crate::adapter::{Adapter, BuildContext};
 use crate::container::ContainerBuilder;
 use crate::contributor::AnyContributor;
 use crate::error::KickResult;
+use crate::introspect::IntrospectionSnapshot;
 use crate::module::Module;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -112,6 +113,17 @@ pub trait Plugin: Send + Sync + 'static {
         &self,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = KickResult<()>> + Send + '_>> {
         Box::pin(async move { Ok(()) })
+    }
+
+    /// Optional state snapshot for DevTools / `cargo kick info`.
+    /// Returning `Some(...)` enrolls this plugin in the
+    /// `/__debug` introspection endpoint — the snapshot's `state`
+    /// JSON shows up inline next to the plugin entry.
+    ///
+    /// Default `None` keeps plugins opted out by default so adopters
+    /// don't accidentally leak internals to DevTools just by upgrading.
+    fn introspect(&self) -> Option<IntrospectionSnapshot> {
+        None
     }
 }
 
