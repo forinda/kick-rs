@@ -130,10 +130,30 @@ Flags:
 - `--path <PATH>` — override project-root detection.
 - `--force` — overwrite the contributor file if it already exists.
 
+## Auto-registration
+
+By default each `g` subcommand also writes the wiring needed to use
+the generated code:
+
+| Generator        | Edits                                                                   |
+|------------------|-------------------------------------------------------------------------|
+| `g module`       | Inserts `.module(modules::<name>::define())` into `src/main.rs`         |
+| `g service`      | Inserts `use <name>::<Pascal>;` + `.service::<Pascal>()` in parent `mod.rs` |
+| `g contributor`  | Inserts `use <name>::<Pascal>;` + `.contribute(Pascal)` in parent `mod.rs` |
+
+Insertion is conservative and text-level (no `syn` round-trip), so
+formatting, comments, and blank-line layout are preserved. The
+target file must use the known patterns (`bootstrap()` chain,
+`define_module(...)` chain) — if not, the CLI prints the exact
+snippet to paste and leaves the file untouched.
+
+Each `g` subcommand accepts a `--no-register` flag to skip the
+insertion if you'd rather wire things up yourself.
+
 ## Status
 
-`new`, `g module`, `g service`, `g contributor` today. Planned: `dev`,
-`add`, `info`, `check`.
+`new`, `g module`, `g service`, `g contributor` today (with
+auto-registration). Planned: `dev`, `add`, `info`, `check`.
 
 ## License
 

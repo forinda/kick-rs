@@ -14,6 +14,7 @@
 //! strip that prefix below before handing off to clap.
 
 use clap::{Parser, Subcommand};
+use kick_rs_cli::register::RegisterOutcome;
 use kick_rs_cli::{generate, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -74,6 +75,12 @@ enum Generate {
         /// Overwrite existing files inside the module directory.
         #[arg(long)]
         force: bool,
+
+        /// Skip the `.module(...)` insertion into `src/main.rs`. Use
+        /// when your bootstrap lives outside `main.rs` and you want to
+        /// register manually.
+        #[arg(long)]
+        no_register: bool,
     },
 
     /// Generate a `#[service]`-derived stub inside an existing module.
@@ -90,6 +97,11 @@ enum Generate {
         /// Overwrite the service file if it already exists.
         #[arg(long)]
         force: bool,
+
+        /// Skip the `use` + `.service::<...>()` insertion into the
+        /// parent module's `mod.rs`.
+        #[arg(long)]
+        no_register: bool,
     },
 
     /// Generate a `#[contributor]` async fn (plus a stub Output struct)
@@ -107,6 +119,11 @@ enum Generate {
         /// Overwrite the contributor file if it already exists.
         #[arg(long)]
         force: bool,
+
+        /// Skip the `use` + `.contribute(...)` insertion into the
+        /// parent module's `mod.rs`.
+        #[arg(long)]
+        no_register: bool,
     },
 }
 
@@ -146,18 +163,28 @@ fn main() -> ExitCode {
             }
         }
         Command::Generate {
-            kind: Generate::Module { name, path, force },
+            kind:
+                Generate::Module {
+                    name,
+                    path,
+                    force,
+                    no_register,
+                },
         } => {
             let args = generate::GenerateModuleArgs {
                 name: name.clone(),
                 project_root: path,
                 force,
+                auto_register: !no_register,
             };
             match generate::generate_module(&args) {
-                Ok(dir) => {
-                    println!("✓ generated module at {}", dir.display());
-                    println!("  next: register it in main.rs via");
-                    println!("        .module(modules::{name}::define())");
+                Ok(res) => {
+                    println!("✓ generated module at {}", res.module_dir.display());
+                    print_register_outcome(
+                        &res.register,
+                        "main.rs",
+                        &format!(".module(modules::{name}::define())"),
+                    );
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
@@ -167,50 +194,32 @@ fn main() -> ExitCode {
             }
         }
         Command::Generate {
-            kind: Generate::Contributor { spec, path, force },
-        } => {
-            let args = generate::GenerateContributorArgs {
-                spec: spec.clone(),
-                project_root: path,
-                force,
-            };
-            match generate::generate_contributor(&args) {
-                Ok(file) => {
-                    let (module, snake) = spec.split_once('/').unwrap();
-                    let pascal = generate::to_pascal_case(snake);
-                    println!("✓ generated contributor at {}", file.display());
-                    println!("  next: register on the module's define() builder (or directly on");
-                    println!("        bootstrap()) — in src/modules/{module}/mod.rs add");
-                    println!("        use {snake}::{pascal};");
-                    println!("        ...");
-                    println!("        .contribute({pascal})");
-                    ExitCode::SUCCESS
-                }
-                Err(e) => {
-                    eprintln!("error: {e}");
-                    ExitCode::FAILURE
-                }
-            }
-        }
-        Command::Generate {
-            kind: Generate::Service { spec, path, force },
+            kind:
+                Generate::Service {
+                    spec,
+                    path,
+                    force,
+                    no_register,
+                },
         } => {
             let args = generate::GenerateServiceArgs {
                 spec: spec.clone(),
                 project_root: path,
                 force,
+                auto_register: !no_register,
             };
             match generate::generate_service(&args) {
-                Ok(file) => {
-                    // spec is validated by generate_service before file write, so
-                    // splitting again here is safe.
+                Ok(res) => {
                     let (module, service_snake) = spec.split_once('/').unwrap();
                     let pascal = generate::to_pascal_case(service_snake);
-                    println!("✓ generated service at {}", file.display());
-                    println!("  next: in src/modules/{module}/mod.rs, add");
-                    println!("        use {service_snake}::{pascal};");
-                    println!("        ...");
-                    println!("        .service::<{pascal}>()");
+                    println!("✓ generated service at {}", res.file.display());
+                    print_register_outcome(
+                        &res.register,
+                        &format!("src/modules/{module}/mod.rs"),
+                        &format!(
+                            "use {service_snake}::{pascal};\n        ...\n        .service::<{pascal}>()"
+                        ),
+                    );
                     ExitCode::SUCCESS
                 }
                 Err(e) => {
@@ -218,6 +227,67 @@ fn main() -> ExitCode {
                     ExitCode::FAILURE
                 }
             }
+        }
+        Command::Generate {
+            kind:
+                Generate::Contributor {
+                    spec,
+                    path,
+                    force,
+                    no_register,
+                },
+        } => {
+            let args = generate::GenerateContributorArgs {
+                spec: spec.clone(),
+                project_root: path,
+                force,
+                auto_register: !no_register,
+            };
+            match generate::generate_contributor(&args) {
+                Ok(res) => {
+                    let (module, snake) = spec.split_once('/').unwrap();
+                    let pascal = generate::to_pascal_case(snake);
+                    println!("✓ generated contributor at {}", res.file.display());
+                    print_register_outcome(
+                        &res.register,
+                        &format!("src/modules/{module}/mod.rs"),
+                        &format!(
+                            "use {snake}::{pascal};\n        ...\n        .contribute({pascal})"
+                        ),
+                    );
+                    ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+    }
+}
+
+/// Surface the auto-register outcome to the user as a short hint.
+/// Inserted/AlreadyRegistered get a one-liner; otherwise we print the
+/// manual snippet so adopters can paste it themselves.
+fn print_register_outcome(outcome: &RegisterOutcome, target_path: &str, manual_snippet: &str) {
+    match outcome {
+        RegisterOutcome::Inserted => {
+            println!("  ✓ registered in {target_path}");
+        }
+        RegisterOutcome::AlreadyRegistered => {
+            println!("  · {target_path} already had the registration — no edit needed");
+        }
+        RegisterOutcome::TargetMissing => {
+            println!("  ! {target_path} not found — add manually:");
+            println!("        {manual_snippet}");
+        }
+        RegisterOutcome::AnchorNotFound => {
+            println!("  ! could not find a known builder pattern in {target_path}; add manually:");
+            println!("        {manual_snippet}");
+        }
+        RegisterOutcome::Skipped => {
+            println!("  · skipped per --no-register — add manually:");
+            println!("        {manual_snippet}");
         }
     }
 }
