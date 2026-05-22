@@ -16,12 +16,17 @@ default = []
 # proc-macro compile overhead.
 macros = ["dep:kick-rs-macros"]
 
-# The `config` and `assets` features are still parked — they'll land
-# when `kick-rs-config` / `kick-rs-assets` reach publish-ready state
-# (Phase 5). Adopters who need them early can depend on those crates
-# directly via git.
+# Re-exports the `kick-rs-config` loader (env / dotenv / TOML / JSON
+# layered into a typed `Config`). Opt-in because adopters who only
+# read env vars themselves don't need the `toml` dep.
+config = ["dep:kick-rs-config"]
+
+# `assets` is still parked — lands once `kick-rs-assets` reaches
+# publish-ready state. Adopters needing it early can depend on the
+# crate directly.
 
 [dependencies]
 kick-rs-core   = { workspace = true }
 kick-rs-http   = { workspace = true }
 kick-rs-macros = { workspace = true, optional = true }
+kick-rs-config = { workspace = true, optional = true }
