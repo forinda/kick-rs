@@ -2,6 +2,7 @@
 name        = "rustkick-http"
 version     = "0.0.0"
 description = "axum integration for rustkick — bootstrap, Inject<T>, Ctx, built-in plugins"
+readme      = "README.md"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true

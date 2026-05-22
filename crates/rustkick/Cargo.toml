@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace      = true
 repository.workspace   = true
 authors.workspace      = true
-readme      = "../../README.md"
+readme      = "README.md"
 
 # Optional features for the auxiliary crates (rustkick-macros / -config /
 # -assets) are intentionally not declared here yet. Those crates carry
