@@ -70,7 +70,7 @@ their own dependencies from the in-progress container.
 
 ```toml
 [dependencies]
-kick-rs-core = "0.1.0-alpha.1"
+kick-rs-core = "0.1.0"
 ```
 
 ## Status

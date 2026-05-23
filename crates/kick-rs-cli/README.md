@@ -191,7 +191,7 @@ disk with the services and contributors registered on each:
 $ cargo kick info
 kick-rs project: my-app 0.1.0
   root:        /path/to/my-app
-  kick-rs dep: 0.1.0-alpha.3
+  kick-rs dep: 0.1.0
   features:    macros, config, openapi
 
 modules (2):

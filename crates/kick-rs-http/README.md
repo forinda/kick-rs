@@ -39,7 +39,7 @@ All four are enabled by default. Disable any subset with
 `default-features = false` and pick à-la-carte:
 
 ```toml
-kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features = ["plugin-request-id"] }
+kick-rs-http = { version = "0.1.0", default-features = false, features = ["plugin-request-id"] }
 ```
 
 | Plugin                | Feature gate            | Phase           | What it does                                                                          |
@@ -137,7 +137,7 @@ a `.with_devtools()` call on the bootstrap (two opt-ins on purpose,
 to make it hard to accidentally ship in production):
 
 ```toml
-kick-rs-http = { version = "0.1.0-alpha.1", features = ["devtools"] }
+kick-rs-http = { version = "0.1.0", features = ["devtools"] }
 ```
 
 ```rust,ignore
@@ -152,7 +152,7 @@ bootstrap()
 ```json
 {
   "framework": "kick-rs",
-  "version":   "0.1.0-alpha.1",
+  "version":   "0.1.0",
   "modules":   [{ "name": "users", "prefix": "/users", "routes": 5, "sub_modules": [] }],
   "plugins":   [
     { "name": "request-id", "state": { "header": "x-request-id", "id_format": "uuid-v7-or-passthrough" } },
@@ -220,7 +220,7 @@ shutdown.
 
 ```toml
 [dependencies]
-kick-rs-http = "0.1.0-alpha.1"
+kick-rs-http = "0.1.0"
 ```
 
 ## Status

@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-core"
-version     = "0.1.0-alpha.4"
+version     = "0.1.0"
 description = "Core DI container, modules, adapters, plugins, and error model for kick-rs"
 readme      = "README.md"
 edition.workspace      = true

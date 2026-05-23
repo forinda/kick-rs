@@ -136,7 +136,7 @@ still be added a la carte.
 ```toml
 [dependencies]
 # From crates.io:
-kick-rs = "0.1.0-alpha.1"
+kick-rs = "0.1.0"
 
 # From git for unreleased work:
 # kick-rs = { git = "https://github.com/forinda/kick-rs", branch = "main" }
@@ -1117,7 +1117,7 @@ cargo run
 - [x] `HttpModuleBuilder::handler` / `.handlers` for `_route`
        registrar functions
 
-### Phase 7+ — Tooling & polish (post-`0.1.0-alpha.1`)
+### Phase 7+ — Tooling & polish (post-`0.1.0`)
 - [ ] `0.1.0` stable bump after a few weeks of alpha shake-out
 - [ ] Built-in HTTP plugins: `request_id`, `request_logger`, `cors`,
        `helmet`, `compression`, `trace_context`
