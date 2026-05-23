@@ -44,10 +44,10 @@ into the container via `bootstrap().service_value(cfg)`.
 
 ```toml
 [dependencies]
-kick-rs-config = "0.1.0-alpha.1"
+kick-rs-config = "0.1.0"
 
 # or via the umbrella crate with the `config` feature:
-kick-rs = { version = "0.1.0-alpha.1", features = ["config"] }
+kick-rs = { version = "0.1.0", features = ["config"] }
 ```
 
 ## License

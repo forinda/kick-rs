@@ -196,10 +196,10 @@ pins matching versions so adopters need exactly one dep line.
 
 ```toml
 [dependencies]
-kick-rs = "0.1.0-alpha.6"
+kick-rs = "0.1.0"
 
 # enable the features you want:
-kick-rs = { version = "0.1.0-alpha.6", features = [
+kick-rs = { version = "0.1.0", features = [
     "macros",      # #[service], #[contributor], #[get]/#[post]/...
     "config",      # layered Config::builder()
     "openapi",     # OpenApiPlugin + paths!()
@@ -207,10 +207,6 @@ kick-rs = { version = "0.1.0-alpha.6", features = [
     "assets",      # embed_assets! + AssetsPlugin
 ] }
 ```
-
-> Cargo doesn't auto-select pre-release versions from a range like
-> `kick-rs = "0.1"` — until a stable `0.1.0` ships, spell out the
-> full `0.1.0-alpha.6`.
 
 Most adopters scaffold a fresh project with `cargo kick new <name>`
 instead — the generated `Cargo.toml` already lists the right deps
@@ -220,24 +216,10 @@ and the most common feature set.
 
 ## Status
 
-| Crate                    | Latest        |
-|--------------------------|---------------|
-| `kick-rs`                | `0.1.0-alpha.6` |
-| `kick-rs-core`           | `0.1.0-alpha.4` |
-| `kick-rs-http`           | `0.1.0-alpha.4` |
-| `kick-rs-macros`         | `0.1.0-alpha.4` |
-| `kick-rs-config`         | `0.1.0-alpha.4` |
-| `kick-rs-assets`         | `0.1.0-alpha.3` |
-| `kick-rs-assets-macros`  | `0.1.0-alpha.2` |
-| `kick-rs-cli`            | `0.1.0-alpha.4` |
-
-API surface is functionally complete and the alpha lane is open
-for adopters. The framework, CLI, and both example apps are exercised
-by ~250 tests + clippy `-D warnings` on every PR. Release cadence is
-release-plz on every merge.
-
-The path to `0.1.0` (no alpha) is one or two cycles of adopter
-feedback — the surface itself is stable.
+`0.1.0` — public API stable. All eight crates publish in lockstep at
+the same version. The framework, CLI, and both example apps are
+exercised by ~250 tests + `clippy -D warnings` on every PR; release
+cadence is release-plz on every merge.
 
 DB-related crates (`kick-rs-pg`, etc.) are **not** on the roadmap.
 DB code lives in user code; the framework stays lean.

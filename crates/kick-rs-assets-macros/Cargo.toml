@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-assets-macros"
-version     = "0.1.0-alpha.2"
+version     = "0.1.0"
 description = "Proc-macro half of kick-rs-assets — `embed_assets!`"
 readme      = "README.md"
 edition.workspace      = true

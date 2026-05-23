@@ -94,10 +94,10 @@ other vendored dep.
 
 ```toml
 [dependencies]
-kick-rs-assets = "0.1.0-alpha.1"
+kick-rs-assets = "0.1.0"
 
 # or via the umbrella crate with the `assets` feature:
-kick-rs = { version = "0.1.0-alpha.3", features = ["assets"] }
+kick-rs = { version = "0.1.0", features = ["assets"] }
 ```
 
 ## License
