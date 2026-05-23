@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0-alpha.3](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0-alpha.2...kick-rs-assets-v0.1.0-alpha.3) - 2026-05-23
+
+### Added
+
+- *(assets)* own embed_assets! macro — drop include_dir adopter dep
+
+### Other
+
+- include each crate's README as its docs.rs landing page
+
 ## [0.1.0-alpha.2](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0-alpha.1...kick-rs-assets-v0.1.0-alpha.2) - 2026-05-22
 
 ### Added
