@@ -125,6 +125,11 @@ impl Plugin for OpenApiPlugin {
 }
 
 impl crate::HttpPlugin for OpenApiPlugin {
+    fn bypass_contributor_paths(&self) -> Vec<String> {
+        // Framework-owned route — no user contributors needed.
+        vec![self.path.clone()]
+    }
+
     fn http_modules(&self) -> Vec<HttpModule> {
         let json = self.json.clone();
         let handler = move || {
@@ -246,5 +251,50 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::NOT_FOUND);
+    }
+
+    /// Regression test for the multi-tenant-api demo: with a
+    /// user-supplied contributor that errors on missing headers,
+    /// `GET /openapi.json` must still 200. The plugin's
+    /// `bypass_contributor_paths` skips the pipeline for its own route.
+    #[tokio::test]
+    async fn openapi_path_bypasses_failing_contributors() {
+        use kick_rs_core::{ContextContributor, ContributorRequest, KickError, KickResult};
+
+        #[derive(Debug, Clone)]
+        struct NeverProduced;
+
+        struct AlwaysErrs;
+        impl ContextContributor for AlwaysErrs {
+            type Key = NeverProduced;
+            type Deps = ();
+            async fn resolve<'a>(
+                &'a self,
+                _: &'a dyn ContributorRequest,
+                _: (),
+            ) -> KickResult<NeverProduced> {
+                Err(KickError::new(
+                    "TEST_CONTRIB_FAILS",
+                    "the user's contributor demands a header we don't send",
+                ))
+            }
+        }
+
+        let (router, _) = bootstrap()
+            .contribute(AlwaysErrs)
+            .http_plugin(OpenApiPlugin::new(ApiDoc::openapi()))
+            .into_router()
+            .unwrap();
+
+        let res = router
+            .oneshot(HReq::get("/openapi.json").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(
+            res.status(),
+            StatusCode::OK,
+            "/openapi.json must bypass the failing contributor — got {}",
+            res.status()
+        );
     }
 }

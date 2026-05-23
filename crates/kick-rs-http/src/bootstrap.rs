@@ -302,10 +302,27 @@ impl Bootstrap {
         //     means: install contributor middleware first, then the
         //     Extension layer.
         if !pipeline.is_empty() {
+            // Collect path prefixes that should bypass the
+            // contributor pipeline. Framework plugins (OpenAPI,
+            // DevTools, Assets) opt in via
+            // `HttpPlugin::bypass_contributor_paths`; the bypass also
+            // covers the DevTools route the bootstrap mounts directly.
+            #[allow(unused_mut)]
+            let mut bypass: Vec<String> = http_plugins
+                .iter()
+                .flat_map(|hp| hp.bypass_contributor_paths())
+                .collect();
+            #[cfg(feature = "devtools")]
+            if let Some(p) = devtools_path.as_deref() {
+                bypass.push(p.to_owned());
+            }
+            let bypass = Arc::new(bypass);
+
             let pipeline_for_layer = Arc::clone(&pipeline);
             router = router.layer(axum::middleware::from_fn(move |req, next| {
                 let p = Arc::clone(&pipeline_for_layer);
-                async move { crate::contributors_middleware(p, req, next).await }
+                let b = Arc::clone(&bypass);
+                async move { crate::contributors_middleware(p, b, req, next).await }
             }));
         }
         router = router.layer(Extension(container.clone()));

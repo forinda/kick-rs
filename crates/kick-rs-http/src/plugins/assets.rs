@@ -99,6 +99,13 @@ impl Plugin for AssetsPlugin {
 }
 
 impl crate::HttpPlugin for AssetsPlugin {
+    fn bypass_contributor_paths(&self) -> Vec<String> {
+        // Static assets shouldn't trip the app's user contributors —
+        // `LoadCurrentUser` etc. aren't expected to fire on every
+        // .js / .css fetch.
+        vec![self.manifest.url_prefix().to_owned()]
+    }
+
     fn http_modules(&self) -> Vec<HttpModule> {
         // Manifest's url_prefix is the segment we own. Axum's
         // wildcard syntax in 0.7 is `*name` to capture the rest of
