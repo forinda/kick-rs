@@ -1,0 +1,21 @@
+[package]
+name        = "kick-rs-assets-macros"
+version     = "0.1.0-alpha.1"
+description = "Proc-macro half of kick-rs-assets — `embed_assets!`"
+edition.workspace      = true
+rust-version.workspace = true
+license.workspace      = true
+repository.workspace   = true
+authors.workspace      = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn         = { workspace = true }
+quote       = { workspace = true }
+proc-macro2 = { workspace = true }
+# Resolves the user-facing name of `kick-rs-assets` at macro expansion
+# time so the emitted code works whether the adopter imports
+# `kick-rs-assets` directly or via the `kick-rs` umbrella.
+proc-macro-crate = "3"

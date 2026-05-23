@@ -75,6 +75,10 @@ git_tag_name = "kick-rs-v{{ version }}"
 name = "kick-rs-assets"
 git_tag_name = "kick-rs-assets-v{{ version }}"
 
+[[package]]
+name = "kick-rs-assets-macros"
+git_tag_name = "kick-rs-assets-macros-v{{ version }}"
+
 # ── Gated (placeholders, not yet ready to publish) ───────────────────────
 #
 # Cargo.toml carries `publish = false`; release-plz requires both

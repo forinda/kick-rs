@@ -11,17 +11,16 @@ authors.workspace      = true
 
 [features]
 default = ["embed"]
-# `embed` pulls in `include_dir`, which adds a few hundred KB of
-# compile time. Off-by-... wait, we keep it default-on because most
+# `embed` pulls in our own proc-macro crate. Default-on because most
 # adopters want bundled assets; opt out via default-features = false
 # if you only need the manifest loader.
-embed = ["dep:include_dir"]
+embed = ["dep:kick-rs-assets-macros"]
 
 [dependencies]
-kick-rs-core = { workspace = true }
-serde        = { workspace = true }
-serde_json   = { workspace = true }
-include_dir  = { version = "0.7", optional = true }
+kick-rs-core          = { workspace = true }
+serde                 = { workspace = true }
+serde_json            = { workspace = true }
+kick-rs-assets-macros = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3"
