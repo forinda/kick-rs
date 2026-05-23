@@ -21,6 +21,11 @@ clap      = { version = "4", features = ["derive"] }
 # without rewriting the entire file (preserves layout, comments,
 # blank lines, key ordering).
 toml_edit = "0.22"
+# `cargo kick dev` watches the project's source tree and restarts
+# the bin on save. notify-debouncer-mini batches event storms (each
+# editor save emits multiple inotify/ReadDirectoryChangesW events).
+notify                = "8"
+notify-debouncer-mini = "0.7"
 
 [dev-dependencies]
 tempfile = "3"
