@@ -1,10 +1,9 @@
-//! Library half of `kick-rs-cli`. The `cargo-kick` binary is a thin
-//! clap shell over these modules; integration tests use them directly.
-//!
-//! Public surface is small on purpose — this isn't a crate adopters
-//! consume, it's a place to put logic that's awkward to test through
-//! the binary's stdout/stderr.
-
+#![doc = include_str!("../README.md")]
+//
+// (The `pub` modules below are the library half of `kick-rs-cli` —
+// the `cargo-kick` binary is a thin clap shell over them, and
+// integration tests use them directly. Adopters install the CLI via
+// `cargo install kick-rs-cli`; they don't depend on the library.)
 #![forbid(unsafe_code)]
 #![warn(rust_2018_idioms)]
 

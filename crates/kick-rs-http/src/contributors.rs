@@ -2,7 +2,7 @@
 //!
 //! At bootstrap time we collect every contributor declared by a module
 //! (or sub-module) into a single [`ContributorPipeline`], topo-sort it,
-//! and install [`contributors_layer`] on the router. The layer runs the
+//! and install [`contributors_middleware`] on the router. The layer runs the
 //! pipeline before every handler and stores the resulting
 //! [`ContributorStore`] in the request extensions so handlers can pull
 //! values via [`Ctx<T>`] (or any future `RequestContext` accessor).

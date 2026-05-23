@@ -1,14 +1,4 @@
-//! # kick-rs-core
-//!
-//! Core building blocks for the kick-rs framework — DI container, module
-//! system, adapter/plugin factories, context contributors, error model.
-//!
-//! This crate has **no dependency on axum or any HTTP runtime** so it can be
-//! reused for non-HTTP transports (workers, CLIs, future WS-only apps).
-//!
-//! See the workspace [`SPEC.md`](../SPEC.md) for the design overview and
-//! [`ARCHITECTURE.md`](../ARCHITECTURE.md) for internals.
-
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 

@@ -1,7 +1,7 @@
-//! HTTP-aware extension to the core [`Plugin`](kick_rs_core::Plugin) trait.
+//! HTTP-aware extension to the core [`Plugin`] trait.
 //!
 //! Plugins that need to ship handler routes implement [`HttpPlugin`]
-//! (which extends [`Plugin`](kick_rs_core::Plugin) with one extra
+//! (which extends [`Plugin`] with one extra
 //! method — [`HttpPlugin::http_modules`]) rather than `Plugin` directly.
 //! Bootstrap accepts both via [`Bootstrap::plugin`](crate::Bootstrap::plugin)
 //! and [`Bootstrap::http_plugin`](crate::Bootstrap::http_plugin); the
@@ -12,7 +12,7 @@ use crate::module::HttpModule;
 use kick_rs_core::Plugin;
 
 /// HTTP-aware plugin trait. Same lifecycle as the core
-/// [`Plugin`](kick_rs_core::Plugin), plus the ability to contribute
+/// [`Plugin`], plus the ability to contribute
 /// full [`HttpModule`]s (routes + handlers + per-module providers and
 /// contributors).
 ///

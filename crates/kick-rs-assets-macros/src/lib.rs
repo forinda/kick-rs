@@ -1,11 +1,4 @@
-//! Proc-macro half of `kick-rs-assets`. Ships `embed_assets!`.
-//!
-//! The macro reads a directory at compile time and emits a static
-//! tree of `kick_rs_assets::EmbeddedAssets` referencing every file's
-//! contents via `include_bytes!`. The emitted code references the
-//! runtime types through `kick_rs_assets` (resolved via
-//! `proc-macro-crate`), so adopters never need to depend on
-//! `include_dir` or any other vendored crate themselves.
+#![doc = include_str!("../README.md")]
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

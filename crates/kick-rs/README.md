@@ -22,8 +22,8 @@ kick-rs = "0.1.0-alpha.1"
 
 ## Hello world
 
-```rust
-use kick-rs::{bootstrap, define_module, Inject, KickResult};
+```rust,ignore
+use kick_rs::{bootstrap, define_module, Inject, KickResult};
 use axum::Json;
 
 struct HelloService;

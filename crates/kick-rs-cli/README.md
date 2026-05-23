@@ -33,7 +33,7 @@ curl http://localhost:3000/hello
 
 Generated layout:
 
-```
+```text
 my-app/
 ├── Cargo.toml               # depends on kick-rs (macros + config features)
 ├── README.md                # quick run instructions

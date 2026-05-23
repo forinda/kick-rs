@@ -23,7 +23,7 @@ content-type, cache headers, etc.) lives in **`kick-rs-http`**'s
 
 ## Manifest
 
-```rust
+```rust,no_run
 use kick_rs_assets::AssetManifest;
 
 let m = AssetManifest::load("dist/.vite/manifest.json")?
@@ -31,6 +31,7 @@ let m = AssetManifest::load("dist/.vite/manifest.json")?
 
 let url = m.resolve("app.js")?;
 // "/static/app.a1b2c3.js"
+# Ok::<_, kick_rs_core::KickError>(())
 ```
 
 Accepted JSON shape:

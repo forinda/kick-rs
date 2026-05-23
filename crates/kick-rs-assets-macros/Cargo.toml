@@ -2,6 +2,7 @@
 name        = "kick-rs-assets-macros"
 version     = "0.1.0-alpha.1"
 description = "Proc-macro half of kick-rs-assets — `embed_assets!`"
+readme      = "README.md"
 edition.workspace      = true
 rust-version.workspace = true
 license.workspace      = true
