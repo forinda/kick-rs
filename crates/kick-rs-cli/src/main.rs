@@ -8,8 +8,7 @@
 //! - `add <feature>`                            — toggle an opt-in `kick-rs` feature in Cargo.toml
 //! - `info`                                     — print a snapshot of the current project
 //! - `dev`                                      — watch the source tree and restart on save
-//!
-//! Future subcommands (`check`) land in later phases; see SPEC.md §7.
+//! - `check`                                    — lint the project for common misconfigurations
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
 //! invoking `cargo kick <args>` runs us with `args[1] == "kick"`. We
@@ -17,7 +16,7 @@
 
 use clap::{Parser, Subcommand};
 use kick_rs_cli::register::RegisterOutcome;
-use kick_rs_cli::{add, dev, generate, info, new};
+use kick_rs_cli::{add, check, dev, generate, info, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -57,6 +56,16 @@ enum Command {
     Generate {
         #[command(subcommand)]
         kind: Generate,
+    },
+
+    /// Lint a kick-rs project for common misconfigurations:
+    /// unmounted modules, stale `pub mod` declarations, services /
+    /// contributors that aren't registered with their parent module.
+    /// Exits non-zero on any finding.
+    Check {
+        /// Override the project root.
+        #[arg(long)]
+        path: Option<PathBuf>,
     },
 
     /// Watch the source tree and restart `cargo run` on save.
@@ -306,6 +315,24 @@ fn main() -> ExitCode {
                         ),
                     );
                     ExitCode::SUCCESS
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Check { path } => {
+            let args = check::CheckArgs { project_root: path };
+            match check::run(&args) {
+                Ok(report) => {
+                    print!("{}", check::render(&report));
+                    if report.is_clean() {
+                        ExitCode::SUCCESS
+                    } else {
+                        // Use exit code 1 — make this a useful CI gate.
+                        ExitCode::FAILURE
+                    }
                 }
                 Err(e) => {
                     eprintln!("error: {e}");
