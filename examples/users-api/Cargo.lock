@@ -946,8 +946,9 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.6"
 dependencies = [
+ "kick-rs-assets",
  "kick-rs-config",
  "kick-rs-core",
  "kick-rs-http",
@@ -955,8 +956,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "kick-rs-assets"
+version = "0.1.0-alpha.3"
+dependencies = [
+ "kick-rs-assets-macros",
+ "kick-rs-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kick-rs-assets-macros"
+version = "0.1.0-alpha.2"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "kick-rs-config"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "kick-rs-core",
  "serde",
@@ -966,7 +987,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-core"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "async-trait",
  "serde",
@@ -977,13 +998,14 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-http"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "async-trait",
  "axum",
  "futures",
  "http",
  "hyper",
+ "kick-rs-assets",
  "kick-rs-core",
  "serde",
  "serde_json",
@@ -997,7 +1019,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-macros"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.4"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",

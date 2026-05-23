@@ -32,11 +32,12 @@ openapi = ["kick-rs-http/openapi"]
 # — two opt-ins by design.
 devtools = ["kick-rs-http/devtools"]
 
-# Re-exports the `kick-rs-assets` crate (`AssetManifest` + the
-# `embed_assets!` compile-time bundling macro). Opt-in because the
-# `embed` machinery from `include_dir` adds noticeable build time
-# adopters not bundling static assets don't need.
-assets = ["dep:kick-rs-assets"]
+# Bundles the full assets story: the `kick-rs-assets` runtime
+# (AssetManifest + embed_assets!) plus the AssetsPlugin in
+# kick-rs-http that serves the embedded tree with content-type +
+# immutable cache headers. One feature, both halves — there's no
+# realistic adopter wanting one without the other.
+assets = ["dep:kick-rs-assets", "kick-rs-http/plugin-assets"]
 
 [dependencies]
 kick-rs-core   = { workspace = true }

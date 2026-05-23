@@ -68,7 +68,24 @@ pub use kick_rs_config as config;
 
 // ── Opt-in static-assets (feature = "assets") ──────────────────────────
 //
-// `AssetManifest` + the `embed_assets!` compile-time bundling macro.
-// Exposes the entire `kick-rs-assets` surface under `kick_rs::assets`.
+// Bundling (compile time) + serving (runtime), under one path so
+// adopters write a single `use kick_rs::assets::{...};`.
 #[cfg(feature = "assets")]
-pub use kick_rs_assets as assets;
+pub mod assets {
+    //! Static-asset bundling + HTTP serving.
+    //!
+    //! Compile-time bundling primitives come from `kick-rs-assets`:
+    //! the [`embed_assets!`](kick_rs_assets::embed_assets) macro,
+    //! the [`EmbeddedAssets`](kick_rs_assets::EmbeddedAssets) tree
+    //! it returns, [`AssetManifest`](kick_rs_assets::AssetManifest)
+    //! for `key → hashed-name` lookup, and
+    //! [`content_type_for`](kick_rs_assets::content_type_for) for
+    //! MIME inference.
+    //!
+    //! HTTP-side: [`AssetsPlugin`] takes the manifest + the
+    //! embedded tree and serves them under the manifest's URL
+    //! prefix with `cache-control: public, immutable, max-age=…`.
+
+    pub use kick_rs_assets::*;
+    pub use kick_rs_http::plugins::assets::AssetsPlugin;
+}
