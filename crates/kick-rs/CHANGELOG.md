@@ -11,6 +11,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0-alpha.6](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.5...kick-rs-v0.1.0-alpha.6) - 2026-05-23
+
+### Other
+
+- include each crate's README as its docs.rs landing page
+
 ## [0.1.0-alpha.5](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.4...kick-rs-v0.1.0-alpha.5) - 2026-05-22
 
 ### Other
