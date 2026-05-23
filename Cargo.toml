@@ -7,6 +7,7 @@ members = [
     "crates/kick-rs-macros",
     "crates/kick-rs-config",
     "crates/kick-rs-assets",
+    "crates/kick-rs-assets-macros",
     "crates/kick-rs-cli",
 ]
 exclude = ["examples"]
@@ -21,11 +22,12 @@ authors      = ["The kick-rs contributors"]
 [workspace.dependencies]
 # Framework crates — kept in lockstep at the workspace level so the
 # umbrella crate doesn't have to enumerate them with explicit versions.
-kick-rs-core    = { path = "crates/kick-rs-core", version = "0.1.0-alpha.3" }
-kick-rs-http    = { path = "crates/kick-rs-http", version = "0.1.0-alpha.3" }
-kick-rs-macros  = { path = "crates/kick-rs-macros", version = "0.1.0-alpha.3" }
-kick-rs-config  = { path = "crates/kick-rs-config", version = "0.1.0-alpha.3" }
-kick-rs-assets  = { path = "crates/kick-rs-assets", version = "0.1.0-alpha.2" }
+kick-rs-core          = { path = "crates/kick-rs-core",          version = "0.1.0-alpha.3" }
+kick-rs-http          = { path = "crates/kick-rs-http",          version = "0.1.0-alpha.3" }
+kick-rs-macros        = { path = "crates/kick-rs-macros",        version = "0.1.0-alpha.3" }
+kick-rs-config        = { path = "crates/kick-rs-config",        version = "0.1.0-alpha.3" }
+kick-rs-assets        = { path = "crates/kick-rs-assets",        version = "0.1.0-alpha.2" }
+kick-rs-assets-macros = { path = "crates/kick-rs-assets-macros", version = "0.1.0-alpha.1" }
 
 # Runtime + HTTP
 tokio       = { version = "1", features = ["full"] }

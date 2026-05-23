@@ -7,15 +7,10 @@
 //!    from a webpack / vite / esbuild-style JSON manifest. Resolves
 //!    a logical key (`"app.js"`) to the cache-busted URL the browser
 //!    should fetch (`"/static/app.a1b2c3.js"`).
-//! 2. `embed_assets!` — a re-export of [`include_dir!`] that bundles
-//!    a directory tree into the binary at compile time, returning an
-//!    [`EmbeddedAssets`] handle for lookup at runtime. Gated on the
+//! 2. `embed_assets!` — bundles a directory tree into the binary at
+//!    compile time via `include_bytes!`, returning an
+//!    [`EmbeddedAssets`] static for lookup at runtime. Gated on the
 //!    default `embed` feature.
-//!
-//!    **Note**: the macro expands to `::include_dir::*` paths, so
-//!    consumers must add `include_dir = "0.7"` to their own
-//!    `Cargo.toml`. We can't shield adopters from that without a
-//!    proc-macro wrapper (planned).
 //!
 //! HTTP serving (responding to `GET /static/...` with the right
 //! content-type, cache headers, and falling through to the manifest)
@@ -161,13 +156,15 @@ pub use embed::*;
 
 #[cfg(feature = "embed")]
 mod embed {
-    //! Compile-time bundling via [`include_dir`].
+    //! Compile-time bundling via the `kick-rs-assets-macros` proc-macro.
+    //!
+    //! The tree is a plain `&'static` cascade — no `Box`, `Vec`, or
+    //! lazy allocation. Every file's contents come from `include_bytes!`
+    //! emitted by the proc-macro.
 
     use kick_rs_core::{KickError, KickResult};
 
-    /// Re-export of [`include_dir!`] under our own name so adopters
-    /// can write `kick_rs_assets::embed_assets!(...)` without an
-    /// extra dependency line.
+    /// Embed a directory tree into the binary at compile time.
     ///
     /// ```ignore
     /// use kick_rs_assets::{embed_assets, EmbeddedAssets};
@@ -180,10 +177,113 @@ mod embed {
     ///     }
     /// }
     /// ```
-    pub use include_dir::include_dir as embed_assets;
+    ///
+    /// Accepted path forms: absolute, `$CARGO_MANIFEST_DIR/...`,
+    /// `$OUT_DIR/...`, or relative (resolved against
+    /// `$CARGO_MANIFEST_DIR`).
+    pub use kick_rs_assets_macros::embed_assets;
 
-    /// Bundled directory tree, addressable by path.
-    pub type EmbeddedAssets = include_dir::Dir<'static>;
+    /// One bundled directory. Static — every field lives in `'static`
+    /// memory; iteration is cheap and allocation-free.
+    #[derive(Debug, Clone, Copy)]
+    pub struct EmbeddedAssets {
+        path: &'static str,
+        entries: &'static [EmbeddedEntry],
+    }
+
+    /// One bundled file.
+    #[derive(Debug, Clone, Copy)]
+    pub struct EmbeddedFile {
+        path: &'static str,
+        contents: &'static [u8],
+    }
+
+    /// Entry in an embedded tree — either a file or a sub-directory.
+    #[derive(Debug, Clone, Copy)]
+    pub enum EmbeddedEntry {
+        /// A file with its bytes loaded via `include_bytes!`.
+        File(EmbeddedFile),
+        /// A nested directory.
+        Dir(EmbeddedAssets),
+    }
+
+    impl EmbeddedAssets {
+        // Constructor exposed for use by the proc-macro's expansion.
+        // `pub` + `#[doc(hidden)]` is the established Rust pattern for
+        // "callable from generated code, not from humans".
+        #[doc(hidden)]
+        pub const fn __new(path: &'static str, entries: &'static [EmbeddedEntry]) -> Self {
+            Self { path, entries }
+        }
+
+        /// Path the tree was rooted at, relative to its parent. Empty
+        /// string for the top-level tree.
+        pub fn path(&self) -> &'static str {
+            self.path
+        }
+
+        /// Direct child entries (one level — does not recurse).
+        pub fn entries(&self) -> &'static [EmbeddedEntry] {
+            self.entries
+        }
+
+        /// Find a file by its forward-slash-separated path relative
+        /// to *this* directory. Walks sub-directories as needed.
+        pub fn get_file(&self, rel: &str) -> Option<&'static EmbeddedFile> {
+            // Strip a leading slash so `/foo.js` and `foo.js` both work.
+            let rel = rel.strip_prefix('/').unwrap_or(rel);
+            for entry in self.entries {
+                match entry {
+                    EmbeddedEntry::File(f) => {
+                        if path_matches(f.path, self.path, rel) {
+                            return Some(f);
+                        }
+                    }
+                    EmbeddedEntry::Dir(d) => {
+                        if let Some(f) = d.get_file(rel) {
+                            return Some(f);
+                        }
+                    }
+                }
+            }
+            None
+        }
+    }
+
+    impl EmbeddedFile {
+        // Same convention as EmbeddedAssets::__new.
+        #[doc(hidden)]
+        pub const fn __new(path: &'static str, contents: &'static [u8]) -> Self {
+            Self { path, contents }
+        }
+
+        /// The file's path relative to the embedded tree's root.
+        pub fn path(&self) -> &'static str {
+            self.path
+        }
+
+        /// The file's bytes.
+        pub fn contents(&self) -> &'static [u8] {
+            self.contents
+        }
+    }
+
+    /// Path-comparison helper. `file_path` is the file's path relative
+    /// to the *root* of the embedded tree. `dir_prefix` is the path of
+    /// the directory we're searching from. `target` is the path the
+    /// caller is looking up, relative to `dir_prefix`. Returns true
+    /// when `file_path == join(dir_prefix, target)`.
+    fn path_matches(file_path: &str, dir_prefix: &str, target: &str) -> bool {
+        if dir_prefix.is_empty() {
+            return file_path == target;
+        }
+        // file_path should be `<dir_prefix>/<target>`. Avoid an alloc
+        // by comparing in pieces.
+        file_path
+            .strip_prefix(dir_prefix)
+            .and_then(|rest| rest.strip_prefix('/'))
+            == Some(target)
+    }
 
     /// Best-effort content-type guess from a file extension. Returns
     /// `application/octet-stream` for unknown extensions so the
@@ -217,9 +317,9 @@ mod embed {
 
     /// Read a file from the embedded tree as a `&[u8]`. Errors with
     /// `RK_C_UNKNOWN_ASSET` if the path isn't bundled.
-    pub fn read_embedded<'a>(dir: &'a EmbeddedAssets, rel: &str) -> KickResult<&'a [u8]> {
+    pub fn read_embedded(dir: &EmbeddedAssets, rel: &str) -> KickResult<&'static [u8]> {
         dir.get_file(rel)
-            .map(include_dir::File::contents)
+            .map(EmbeddedFile::contents)
             .ok_or_else(|| {
                 KickError::new(
                     "RK_C_UNKNOWN_ASSET",

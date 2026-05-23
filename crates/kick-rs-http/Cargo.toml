@@ -68,9 +68,3 @@ kick-rs-assets = { workspace = true, optional = true }
 
 [dev-dependencies]
 tower = { workspace = true, features = ["util"] }
-# Needed by the AssetsPlugin tests below: the `embed_assets!` macro
-# re-exported by kick-rs-assets expands to `::include_dir::*` paths,
-# so the consuming crate must have `include_dir` in scope as a direct
-# dep. End adopters of AssetsPlugin face the same requirement (they
-# invoke the macro from their own crate).
-include_dir = "0.7"

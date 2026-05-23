@@ -54,9 +54,10 @@ kick-rs-http = { version = "0.1.0-alpha.1", default-features = false, features =
 
 Mount with `bootstrap().http_plugin(RequestIdPlugin::default())`.
 
-`plugin-assets` is **off by default** (pulls in `include_dir` via
-`kick-rs-assets`). Adopters using it also need `include_dir = "0.7"`
-as a direct dep so the `embed_assets!()` macro's expansion resolves.
+`plugin-assets` is **off by default** (pulls in `kick-rs-assets`
++ its proc-macro crate). The `embed_assets!()` macro routes its
+generated paths through `kick_rs_assets` itself, so adopters don't
+need any extra crate in their `Cargo.toml`.
 
 ## OpenAPI (opt-in)
 
