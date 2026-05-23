@@ -23,10 +23,12 @@ mod modules;
 mod tenancy;
 
 use config::Env;
+use kick_rs::openapi::OpenApiPlugin;
 use kick_rs::{bootstrap, define_module, KickError, KickResult, Module};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use tenancy::{LoadTenant, LoadTenantDb, TenantPoolRegistry, TenantsAllowlist};
+use utoipa::openapi::InfoBuilder;
 
 #[tokio::main]
 async fn main() -> KickResult<()> {
@@ -44,9 +46,21 @@ async fn main() -> KickResult<()> {
     let registry = TenantPoolRegistry::new(env.database_url.clone(), /* max_conns */ 10);
     let allowlist = TenantsAllowlist { slugs: env.tenants.clone() };
 
+    // Build the posts module first so we can reference it when
+    // assembling the OpenAPI spec, then move it into bootstrap().
+    let posts = modules::posts::define();
+    let openapi_plugin = OpenApiPlugin::from_modules(
+        InfoBuilder::new()
+            .title("multi-tenant-api")
+            .version(env!("CARGO_PKG_VERSION"))
+            .build(),
+        [&posts],
+    );
+
     bootstrap()
         .module(infra_module(registry, allowlist))
-        .module(modules::posts::define())
+        .http_plugin(openapi_plugin)
+        .module(posts)
         .contribute(LoadTenant)
         .contribute(LoadTenantDb)
         .listen(&env.bind_addr)
