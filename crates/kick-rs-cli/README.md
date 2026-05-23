@@ -241,11 +241,13 @@ Flags:
   for `templates/`, `static/`, etc).
 - `--debounce-ms <MS>` — debounce window, default `250`.
 
-**Cross-platform caveat:** killing `cargo run` doesn't always reap
-the grandchild process (the actual app binary) on Windows. If your
-app holds a port, the next restart may briefly see `EADDRINUSE`
-until the OS reaps it. A future cleanup will use `taskkill /T`
-or `shared_child`.
+**Process-tree cleanup:** cargo spawns the built binary as its
+grandchild. `kick dev` puts cargo in its own process group on
+spawn (Unix `setpgid` / Windows `CREATE_NEW_PROCESS_GROUP`) and
+sends the kill signal to the whole group on restart (`kill -KILL
+-<pgid>` on Unix, `taskkill /F /T /PID` on Windows) so the bound
+port releases immediately. No extra deps — both platforms use the
+OS's bundled kill utility.
 
 ### `cargo kick check`
 
