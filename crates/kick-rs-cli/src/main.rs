@@ -7,9 +7,9 @@
 //! - `g contributor <module>/<contributor>`     — generate a `#[contributor]` async fn
 //! - `add <feature>`                            — toggle an opt-in `kick-rs` feature in Cargo.toml
 //! - `info`                                     — print a snapshot of the current project
+//! - `dev`                                      — watch the source tree and restart on save
 //!
-//! Future subcommands (`dev`, `check`) land in later phases;
-//! see SPEC.md §7.
+//! Future subcommands (`check`) land in later phases; see SPEC.md §7.
 //!
 //! Cargo subcommand convention: this binary is named `cargo-kick`, so
 //! invoking `cargo kick <args>` runs us with `args[1] == "kick"`. We
@@ -17,7 +17,7 @@
 
 use clap::{Parser, Subcommand};
 use kick_rs_cli::register::RegisterOutcome;
-use kick_rs_cli::{add, generate, info, new};
+use kick_rs_cli::{add, dev, generate, info, new};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -57,6 +57,25 @@ enum Command {
     Generate {
         #[command(subcommand)]
         kind: Generate,
+    },
+
+    /// Watch the source tree and restart `cargo run` on save.
+    /// Wraps `cargo run` with a debounced file watcher rooted at
+    /// `src/`. Editor saves trigger a kill+respawn; stdout/stderr
+    /// from the child stream through unchanged.
+    Dev {
+        /// Override the project root.
+        #[arg(long)]
+        path: Option<PathBuf>,
+
+        /// Extra directories to watch (in addition to `src/`).
+        /// Repeatable: `--watch templates --watch fixtures`.
+        #[arg(long = "watch")]
+        watch: Vec<PathBuf>,
+
+        /// Debounce window in milliseconds. Defaults to 250.
+        #[arg(long, default_value_t = 250)]
+        debounce_ms: u64,
     },
 
     /// Print a snapshot of the current project — package version,
@@ -288,6 +307,24 @@ fn main() -> ExitCode {
                     );
                     ExitCode::SUCCESS
                 }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    ExitCode::FAILURE
+                }
+            }
+        }
+        Command::Dev {
+            path,
+            watch,
+            debounce_ms,
+        } => {
+            let args = dev::DevArgs {
+                project_root: path,
+                watch_paths: watch,
+                debounce_ms,
+            };
+            match dev::run(&args) {
+                Ok(()) => ExitCode::SUCCESS,
                 Err(e) => {
                     eprintln!("error: {e}");
                     ExitCode::FAILURE

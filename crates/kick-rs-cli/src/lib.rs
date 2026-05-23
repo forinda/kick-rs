@@ -8,6 +8,7 @@
 #![warn(rust_2018_idioms)]
 
 pub mod add;
+pub mod dev;
 pub mod generate;
 pub mod info;
 pub mod new;

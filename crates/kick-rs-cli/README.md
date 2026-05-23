@@ -211,10 +211,46 @@ Flags:
 - `--path <PATH>` — override project-root detection.
 - `--dep-name <NAME>` — inspect a renamed dep (defaults to `kick-rs`).
 
+### `cargo kick dev`
+
+Watch the project's source tree and restart `cargo run` on save:
+
+```bash
+cargo kick dev
+# cargo kick dev — starting initial run in `/path/to/my-app`
+#   watching /path/to/my-app/src
+#   Ctrl-C to quit.
+#
+# <cargo's normal output — compile, run, stdout/stderr of your app>
+#
+# (touch src/main.rs)
+#
+# cargo kick dev — change detected; restarting
+```
+
+Files trigger a restart when they match Rust source / TOML / common
+template extensions, *and* aren't inside `target/`, `.git/`,
+`node_modules/`, or any editor temp file (`~`-suffixed). Events are
+debounced 250ms (configurable) so editor save storms produce one
+restart, not N.
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+- `--watch <DIR>` — extra directories to watch (repeatable; useful
+  for `templates/`, `static/`, etc).
+- `--debounce-ms <MS>` — debounce window, default `250`.
+
+**Cross-platform caveat:** killing `cargo run` doesn't always reap
+the grandchild process (the actual app binary) on Windows. If your
+app holds a port, the next restart may briefly see `EADDRINUSE`
+until the OS reaps it. A future cleanup will use `taskkill /T`
+or `shared_child`.
+
 ## Status
 
-`new`, `g module`, `g service`, `g contributor`, `add`, `info` today
-(with auto-registration on the generators). Planned: `dev`, `check`.
+`new`, `g module`, `g service`, `g contributor`, `add`, `info`,
+`dev` today. Planned: `check`.
 
 ## License
 
