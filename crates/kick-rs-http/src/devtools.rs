@@ -58,7 +58,7 @@ pub struct ModuleInfo {
 }
 
 /// One plugin entry. Carries the name plus an optional free-form
-/// state field surfaced by [`Plugin::introspect`](kick_rs_core::Plugin::introspect).
+/// state field surfaced by `Plugin::introspect`.
 #[derive(Debug, Clone, Serialize)]
 pub struct PluginInfo {
     /// Plugin name from `Plugin::name()`.
@@ -71,7 +71,7 @@ pub struct PluginInfo {
 }
 
 /// One adapter entry: name, declared `depends_on`, and optional
-/// state from [`Adapter::introspect`](kick_rs_core::Adapter::introspect).
+/// state from `Adapter::introspect`.
 #[derive(Debug, Clone, Serialize)]
 pub struct AdapterInfo {
     /// Adapter name from `Adapter::name()`.

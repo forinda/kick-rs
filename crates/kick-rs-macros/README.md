@@ -28,7 +28,7 @@ specialized cases — most apps don't need to.
 Derives [`ServiceImpl`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ServiceImpl.html)
 from a struct definition, letting modules register it with one call:
 
-```rust
+```rust,ignore
 use kick_rs::{define_module, service, Inject};
 use std::sync::Arc;
 
@@ -69,7 +69,7 @@ Function-style sugar that turns an `async fn` into a
 unit struct. Parallel in spirit to `#[service]`, but for the request-
 context pipeline.
 
-```rust
+```rust,ignore
 use kick_rs::{contributor, ContributorRequest, ContributorRequestExt, KickResult};
 
 #[contributor]
@@ -119,7 +119,7 @@ and path with the handler. The macros leave the function intact and
 emit a sibling `<handler>_route(Router) -> Router` registrar that
 mounts the handler at the right method + path.
 
-```rust
+```rust,ignore
 use kick_rs::*;
 use kick_rs_macros::{get, post};
 use axum::Json;

@@ -1,35 +1,4 @@
-//! # kick-rs-assets
-//!
-//! Two small primitives for shipping static assets with a `kick-rs`
-//! app:
-//!
-//! 1. [`AssetManifest`] — a flat `{key → hashed-filename}` map loaded
-//!    from a webpack / vite / esbuild-style JSON manifest. Resolves
-//!    a logical key (`"app.js"`) to the cache-busted URL the browser
-//!    should fetch (`"/static/app.a1b2c3.js"`).
-//! 2. `embed_assets!` — bundles a directory tree into the binary at
-//!    compile time via `include_bytes!`, returning an
-//!    [`EmbeddedAssets`] static for lookup at runtime. Gated on the
-//!    default `embed` feature.
-//!
-//! HTTP serving (responding to `GET /static/...` with the right
-//! content-type, cache headers, and falling through to the manifest)
-//! lives in [`kick-rs-http`]'s `AssetsPlugin` — kept there so this
-//! crate stays free of axum.
-//!
-//! ```no_run
-//! use kick_rs_assets::AssetManifest;
-//!
-//! let m = AssetManifest::load("dist/.vite/manifest.json")?
-//!     .with_url_prefix("/static");
-//!
-//! let url = m.resolve("app.js")?; // "/static/app.a1b2c3.js"
-//! # Ok::<_, kick_rs_core::KickError>(())
-//! ```
-//!
-//! [`include_dir!`]: https://docs.rs/include_dir/latest/include_dir/macro.include_dir.html
-//! [`kick-rs-http`]: https://docs.rs/kick-rs-http
-
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 

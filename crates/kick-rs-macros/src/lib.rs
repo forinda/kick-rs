@@ -1,19 +1,4 @@
-//! # kick-rs-macros
-//!
-//! Opt-in proc-macro sugar for kick-rs. Every macro here expands to a
-//! call you could write yourself against [`kick_rs_core`].
-//!
-//! Currently shipping:
-//!
-//! - [`service`] — derive [`ServiceImpl`](https://docs.rs/kick-rs-core/latest/kick_rs_core/trait.ServiceImpl.html)
-//!   for a struct whose fields are all `Inject<T>` or `Arc<T>`. The macro
-//!   rewrites the fields to `Arc<T>` and emits a `build()` that resolves
-//!   each from a [`Container`](https://docs.rs/kick-rs-core/latest/kick_rs_core/struct.Container.html).
-//!
-//! Reserved (no-op pass-through for now, to be filled in later phases):
-//!
-//! - `handler` — opt-in marker for axum handlers; reserved for future
-//!   codegen integration.
+#![doc = include_str!("../README.md")]
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

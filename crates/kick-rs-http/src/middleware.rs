@@ -96,7 +96,8 @@ impl MiddlewareEntry {
     }
 
     /// Build an entry from an arbitrary `Fn(Router) -> Router`
-    /// transformation. Useful for attaching any tower [`Layer`] via
+    /// transformation. Useful for attaching any tower
+    /// [`Layer`](tower::Layer) via
     /// `Router::layer`:
     ///
     /// ```ignore

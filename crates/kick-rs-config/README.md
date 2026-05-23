@@ -9,7 +9,7 @@
 Defaults → file → dotenv → process env, merged into a single
 `serde_json::Value` and deserialized into your struct.
 
-```rust
+```rust,no_run
 use kick_rs_config::Config;
 use serde::Deserialize;
 
@@ -25,6 +25,7 @@ let cfg: AppConfig = Config::builder()
     .with_dotenv_optional(".env")
     .with_env_prefix("APP_")
     .extract()?;
+# Ok::<_, kick_rs_core::KickError>(())
 ```
 
 Subsequent sources deep-merge over previous ones. Inside `with_env_prefix`,

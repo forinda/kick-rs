@@ -250,9 +250,9 @@ impl HttpModuleBuilder {
     /// `pub fn <handler>_route(Router) -> Router` next to the handler;
     /// pass that fn here to mount it on the module.
     ///
-    /// ```ignore
+    /// ```text
     /// #[get("/users/:id")]
-    /// async fn show(svc: Inject<UserService>) -> Json<User> { … }
+    /// async fn show(svc: Inject<UserService>) -> Json<User> { /* ... */ }
     ///
     /// define_module("users")
     ///     .handler(show_route)

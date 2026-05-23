@@ -1,20 +1,4 @@
-//! # kick-rs
-//!
-//! A Rust port of [KickJS](https://github.com/forinda/kick-js) — a
-//! module-driven web framework on axum.
-//!
-//! This crate is an **umbrella**: it re-exports
-//! [`kick-rs-core`](kick_rs_core) and [`kick-rs-http`](kick_rs_http)
-//! so app code can write a single `use kick_rs::*;`.
-//!
-//! When both crates expose a `define_module` symbol the HTTP one wins —
-//! that's the one app authors want by default. The transport-agnostic
-//! core variant remains reachable as [`kick_rs_core::define_module`].
-//!
-//! See the workspace [`README.md`](../README.md) for the project tour,
-//! [`SPEC.md`](../SPEC.md) for the design spec, and
-//! [`ARCHITECTURE.md`](../ARCHITECTURE.md) for internals.
-
+#![doc = include_str!("../README.md")]
 #![forbid(unsafe_code)]
 #![warn(missing_docs, rust_2018_idioms)]
 

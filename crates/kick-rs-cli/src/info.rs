@@ -24,7 +24,7 @@ pub struct InfoArgs {
     pub dep_name: String,
 }
 
-/// Top-level snapshot rendered by [`print_info`].
+/// Top-level snapshot rendered by [`render_info`].
 #[derive(Debug)]
 pub struct ProjectInfo {
     pub root: PathBuf,
