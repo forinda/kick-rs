@@ -72,6 +72,39 @@ curl -s http://localhost:3000/openapi.json | jq .info
 Adopters who want Swagger UI / Redoc / Scalar can mount one alongside
 — this example sticks to the raw spec to keep the binary slim.
 
+## Static assets
+
+The `dist/` directory in this example holds an HTML landing page +
+a stylesheet + a favicon. They're embedded into the binary at compile
+time via `kick_rs::assets::embed_assets!` and served by
+`AssetsPlugin`:
+
+```bash
+# point a browser at:
+http://localhost:3000/static/index.html
+
+# or curl:
+curl -s http://localhost:3000/static/index.html
+curl -sI http://localhost:3000/static/app.css | grep -i cache-control
+# cache-control: public, immutable, max-age=31536000
+```
+
+`AssetsPlugin` pulls the URL prefix (`/static`) from the
+`AssetManifest` — same place the cache-busted filenames would live
+if you had a webpack/vite build emitting hashed names. For this
+demo the manifest is identity-mapped (no hash) but the wiring is
+identical to a real-app setup.
+
+Three things make this work end-to-end:
+
+1. `kick-rs = { features = ["assets", ...] }` enables both the
+   compile-time `embed_assets!` macro and the runtime `AssetsPlugin`.
+2. `static ASSETS: EmbeddedAssets = embed_assets!(...)` walks the
+   `dist/` directory at build time and bakes every byte into the
+   binary.
+3. `bootstrap().http_plugin(AssetsPlugin::new(manifest, &ASSETS))`
+   mounts the serving route.
+
 ## Migrations
 
 The example uses **sqlx-cli's reversible migrations** (`.up.sql` +

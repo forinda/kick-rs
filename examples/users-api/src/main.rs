@@ -7,9 +7,9 @@
 //!    `migrations/` directory into the binary at compile time)
 //! 4. Hand the pool to kick-rs as a DI singleton via a small infra
 //!    module
-//! 5. Mount the `users` module + an `OpenApiPlugin` that serves
-//!    `/openapi.json` (auto-collected from the module's `paths!(...)`
-//!    registrations) and listen
+//! 5. Mount the `users` module + an `OpenApiPlugin` (`/openapi.json`)
+//!    + an `AssetsPlugin` (serves the embedded `dist/` directory at
+//!    `/static/*` with immutable cache headers) and listen
 //!
 //! Run:
 //! ```text
@@ -22,11 +22,21 @@ mod config;
 mod modules;
 
 use config::Env;
+use kick_rs::assets::{embed_assets, AssetManifest, AssetsPlugin, EmbeddedAssets};
 use kick_rs::openapi::OpenApiPlugin;
 use kick_rs::{bootstrap, define_module, KickError, KickResult, Module};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 use utoipa::openapi::InfoBuilder;
+
+/// `dist/` — bundled into the binary at compile time. Includes the
+/// landing page, stylesheet, favicon, and the matching manifest.
+static ASSETS: EmbeddedAssets = embed_assets!("$CARGO_MANIFEST_DIR/dist");
+
+/// JSON manifest mapping logical asset keys to their (hashed)
+/// filenames. For this demo we use identity-mapped names; a real
+/// project's webpack / vite build emits one of these for you.
+const ASSET_MANIFEST: &str = include_str!("../dist/manifest.json");
 
 #[tokio::main]
 async fn main() -> KickResult<()> {
@@ -49,10 +59,15 @@ async fn main() -> KickResult<()> {
             .build(),
         [&users],
     );
+    let assets_plugin = AssetsPlugin::new(
+        AssetManifest::from_json(ASSET_MANIFEST)?.with_url_prefix("/static"),
+        &ASSETS,
+    );
 
     bootstrap()
         .module(infra_module(pool))
         .http_plugin(openapi_plugin)
+        .http_plugin(assets_plugin)
         .module(users)
         .listen(&env.bind_addr)
         .await

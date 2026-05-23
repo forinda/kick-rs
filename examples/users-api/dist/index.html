@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>users-api</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main>
+      <h1>users-api</h1>
+      <p>
+        The static files for this page are bundled into the binary at
+        compile time via <code>kick_rs::assets::embed_assets!</code> and
+        served by <code>AssetsPlugin</code> with cache headers.
+      </p>
+      <p>
+        Try the JSON API:
+        <code>curl http://localhost:3000/users</code>
+      </p>
+      <p>
+        Or this page's spec entry:
+        <code>curl http://localhost:3000/openapi.json | jq .</code>
+      </p>
+    </main>
+  </body>
+</html>

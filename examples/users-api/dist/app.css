@@ -1,0 +1,18 @@
+/* tiny demo stylesheet so the assets directory has more than one file */
+body {
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  max-width: 38rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+h1 {
+  margin-bottom: 0.5rem;
+}
+code {
+  background: #f4f4f5;
+  padding: 0.1rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.95em;
+}
