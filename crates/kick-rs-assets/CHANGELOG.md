@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0...kick-rs-assets-v0.1.1) - 2026-05-23
+
+### Other
+
+- release
+
 ## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0-alpha.3...kick-rs-assets-v0.1.0) - 2026-05-23
 
 ### Added

@@ -10,6 +10,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.1.0...kick-rs-http-v0.1.1) - 2026-05-23
+
+### Other
+
+- release
+
 ## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-http-v0.1.0-alpha.4...kick-rs-http-v0.1.0) - 2026-05-23
 
 ### Other
