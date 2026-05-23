@@ -3,15 +3,22 @@
 //!
 //! Thin wrapper over `cargo run`. On each batch of debounced file
 //! events under `src/` (or any user-supplied path), we kill the
-//! current child and respawn `cargo run`. stdout/stderr from the
-//! child stream through to the user's terminal so compile errors
-//! and runtime logs land as they would for a manual `cargo run`.
+//! current child *and the entire process tree it spawned* and
+//! respawn `cargo run`. stdout/stderr from the child stream through
+//! to the user's terminal so compile errors and runtime logs land
+//! as they would for a manual `cargo run`.
 //!
-//! Cross-platform caveat: `Child::kill()` terminates the immediate
-//! `cargo` process but won't always reap grandchildren (the built
-//! app's process) on Windows. If your app holds a port, the next
-//! restart may briefly see an `EADDRINUSE` while the OS reaps it.
-//! Investing in `taskkill /T` or `shared_child` is a follow-up.
+//! Process-tree cleanup: `cargo run` itself spawns the built
+//! binary. Without explicit tree termination, killing cargo leaves
+//! the app running (and the port bound) across the restart. We
+//! work around that by:
+//!
+//! - Spawning cargo in its own process group (Unix `setpgid` /
+//!   Windows `CREATE_NEW_PROCESS_GROUP`).
+//! - On kill, sending the signal to the whole group: `kill -KILL
+//!   -<pgid>` on Unix, `taskkill /F /T /PID` on Windows.
+//!
+//! Result: restart releases the port immediately on both platforms.
 
 use crate::generate::{find_project_root, GenerateError};
 use notify::RecursiveMode;
@@ -149,25 +156,114 @@ pub fn run(args: &DevArgs) -> Result<(), DevError> {
     }
 }
 
-/// Spawn `cargo run` rooted at `root`. stdio inherited so the user
-/// sees output live.
+/// Spawn `cargo run` rooted at `root`, in its own process group so
+/// a single kill signal can reach grandchildren (the built binary).
+///
+/// Without this, `Child::kill()` only terminates `cargo` itself; the
+/// app it spawned keeps running, holding ports / DB pools / etc.
+/// across our restart.
 fn spawn_cargo_run(root: &Path) -> Result<Child, DevError> {
-    Command::new("cargo")
-        .arg("run")
+    let mut cmd = Command::new("cargo");
+    cmd.arg("run")
         .current_dir(root)
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .map_err(DevError::CargoSpawn)
+        .stderr(Stdio::inherit());
+    set_new_process_group(&mut cmd);
+    cmd.spawn().map_err(DevError::CargoSpawn)
 }
 
-/// Best-effort kill — ignores errors because the child may already
-/// be dead (compile failure, panic). We just want it gone before we
-/// respawn.
+/// Platform glue for "make this child the leader of a new process
+/// group". On Unix this is `setpgid(0,0)` (via std's stable
+/// `process_group(0)` extension). On Windows it's
+/// `CREATE_NEW_PROCESS_GROUP` in the creation flags.
+#[cfg(unix)]
+fn set_new_process_group(cmd: &mut Command) {
+    use std::os::unix::process::CommandExt;
+    cmd.process_group(0);
+}
+
+#[cfg(windows)]
+fn set_new_process_group(cmd: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    // CREATE_NEW_PROCESS_GROUP — Microsoft docs, processthreadsapi.h.
+    // Listed as 0x00000200 so callers don't need the `winapi` crate.
+    const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+    cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+}
+
+#[cfg(not(any(unix, windows)))]
+fn set_new_process_group(_: &mut Command) {
+    // Other targets: best-effort no-op; Child::kill is the only
+    // recourse and the port-still-bound caveat applies.
+}
+
+/// Best-effort kill of `cargo` *and every process it spawned*.
+/// Ignores errors because the child may already be dead (compile
+/// failure, panic). We just want it gone before we respawn.
+///
+/// Strategy:
+/// - On Unix, send SIGTERM to the negated PID (i.e. the process
+///   group). If anyone's still alive after a short grace period,
+///   send SIGKILL the same way.
+/// - On Windows, shell out to `taskkill /F /T /PID`, which kills the
+///   whole tree (`/T`) forcefully (`/F`). `cargo run`'s grandchild
+///   (the actual app binary) is the one we usually care about — it's
+///   what holds the listening socket.
+/// - On unknown targets, fall back to `Child::kill`.
 fn kill_silently(child: &mut Child) {
+    let pid = child.id();
+    // Platform-specific tree kill first — this is the one that
+    // actually reaches grandchildren (`cargo run`'s app binary).
+    kill_process_tree(pid);
+    // Defensive: ensure cargo itself is dead too. On platforms where
+    // the tree kill is a no-op, this is the only thing that actually
+    // terminates the child.
     let _ = child.kill();
+    // Reap the zombie so the OS releases the PID.
     let _ = child.wait();
+}
+
+#[cfg(unix)]
+fn kill_process_tree(pid: u32) {
+    // Negative target = group. We sent setpgid earlier so the cargo
+    // pid is also the group id.
+    let group_arg = format!("-{pid}");
+    // TERM first — gives the child a chance to flush. If anything's
+    // still alive after a short delay, hammer with KILL.
+    let _ = Command::new("kill")
+        .arg("-TERM")
+        .arg(&group_arg)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    let _ = Command::new("kill")
+        .arg("-KILL")
+        .arg(&group_arg)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+#[cfg(windows)]
+fn kill_process_tree(pid: u32) {
+    // `taskkill /F /T /PID` — /F = force, /T = tree.
+    let _ = Command::new("taskkill")
+        .args(["/F", "/T", "/PID"])
+        .arg(pid.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+#[cfg(not(any(unix, windows)))]
+fn kill_process_tree(_pid: u32) {
+    // No portable tree-kill — the surrounding Child::kill+wait in
+    // kill_silently is the only thing that runs.
 }
 
 /// Filter the debounced events down to "something we care about".
