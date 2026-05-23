@@ -20,10 +20,9 @@ use std::path::Path;
 /// }
 /// ```
 ///
-/// (Vite's full manifest shape — with nested `imports`, `css`, etc. —
-/// can be reduced to this with the `--manifest=flat` build flag or a
-/// small post-build script. A future revision of this crate may
-/// accept the full shape directly.)
+/// Vite's full manifest (with nested `imports` / `css` arrays) is
+/// also accepted — call [`Self::from_vite_json`] to parse it
+/// directly; we reduce each entry to its `file` field.
 #[derive(Debug, Default, Clone)]
 pub struct AssetManifest {
     entries: BTreeMap<String, String>,
@@ -53,6 +52,50 @@ impl AssetManifest {
     pub fn from_json(json: &str) -> KickResult<Self> {
         let entries: BTreeMap<String, String> = serde_json::from_str(json)
             .map_err(|e| KickError::new("RK_C_PARSE", format!("invalid asset manifest: {e}")))?;
+        Ok(Self {
+            entries,
+            url_prefix: String::new(),
+        })
+    }
+
+    /// Parse vite's full `manifest.json` shape — the one vite emits
+    /// when `build.manifest = true`. Each top-level key maps to a
+    /// record whose `file` field is the hashed output filename:
+    ///
+    /// ```json
+    /// {
+    ///   "src/main.js": {
+    ///     "file": "assets/main.4889e940.js",
+    ///     "src": "src/main.js",
+    ///     "isEntry": true,
+    ///     "imports": ["_shared.83069a53.js"],
+    ///     "css":     ["assets/main.b82dbe22.css"]
+    ///   }
+    /// }
+    /// ```
+    ///
+    /// We reduce that to the flat `entry_key → file` map [`Self::resolve`]
+    /// uses. The CSS / imports / asset arrays nested under each entry
+    /// are *not* surfaced separately yet — `resolve("src/main.js")`
+    /// returns the JS file URL; an API for retrieving the matching
+    /// CSS files for an entry is planned for a follow-up release (the
+    /// underlying data isn't kept right now).
+    ///
+    /// Rejects shape errors with `RK_C_PARSE`.
+    pub fn from_vite_json(json: &str) -> KickResult<Self> {
+        // Local, intentionally lenient deser type — vite emits a few
+        // optional fields we don't use; serde gracefully ignores any
+        // unknown keys by default.
+        #[derive(serde::Deserialize)]
+        struct ViteEntry {
+            file: String,
+        }
+
+        let raw: BTreeMap<String, ViteEntry> = serde_json::from_str(json)
+            .map_err(|e| KickError::new("RK_C_PARSE", format!("invalid vite manifest: {e}")))?;
+
+        let entries: BTreeMap<String, String> = raw.into_iter().map(|(k, v)| (k, v.file)).collect();
+
         Ok(Self {
             entries,
             url_prefix: String::new(),
@@ -301,6 +344,67 @@ mod embed {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_vite_json_reduces_to_flat() {
+        // Realistic vite manifest fixture: two entries, both with the
+        // optional `imports` / `css` arrays vite emits. We only need
+        // `file` — the other fields exist to verify we ignore them
+        // without erroring.
+        let m = AssetManifest::from_vite_json(
+            r#"{
+              "src/main.js": {
+                "file": "assets/main.4889e940.js",
+                "src": "src/main.js",
+                "isEntry": true,
+                "imports": ["_shared.83069a53.js"],
+                "css": ["assets/main.b82dbe22.css"]
+              },
+              "_shared.83069a53.js": {
+                "file": "assets/shared.83069a53.js"
+              }
+            }"#,
+        )
+        .unwrap()
+        .with_url_prefix("/static");
+
+        // Adopter looks up by the same key vite uses internally.
+        assert_eq!(
+            m.resolve("src/main.js").unwrap(),
+            "/static/assets/main.4889e940.js"
+        );
+        assert_eq!(
+            m.resolve("_shared.83069a53.js").unwrap(),
+            "/static/assets/shared.83069a53.js"
+        );
+        // CSS / imports aren't surfaced separately yet — documented
+        // limitation. Only the entry's `file` field maps over.
+        assert_eq!(m.len(), 2);
+    }
+
+    #[test]
+    fn from_vite_json_rejects_malformed() {
+        // Missing the `file` field on the entry — vite would never
+        // emit this, but we should fail loudly if a hand-rolled or
+        // truncated manifest sneaks through.
+        let err = AssetManifest::from_vite_json(r#"{"x": {"src": "x.js"}}"#).unwrap_err();
+        assert_eq!(err.code, "RK_C_PARSE");
+        let err2 = AssetManifest::from_vite_json("not even json").unwrap_err();
+        assert_eq!(err2.code, "RK_C_PARSE");
+    }
+
+    #[test]
+    fn from_vite_json_ignores_unknown_top_level_keys() {
+        // serde deserializes the same way regardless of what's nested
+        // inside the entry — we explicitly use a struct with only
+        // `file`. Sanity: unknown fields in the entry don't trip the
+        // parser.
+        let m = AssetManifest::from_vite_json(
+            r#"{"x.js": {"file": "x.HASH.js", "isDynamicEntry": true, "extra": 42}}"#,
+        )
+        .unwrap();
+        assert_eq!(m.resolve("x.js").unwrap(), "/x.HASH.js");
+    }
 
     #[test]
     fn from_json_parses_flat_object() {

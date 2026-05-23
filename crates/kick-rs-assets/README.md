@@ -34,7 +34,9 @@ let url = m.resolve("app.js")?;
 # Ok::<_, kick_rs_core::KickError>(())
 ```
 
-Accepted JSON shape:
+Two JSON shapes are accepted out of the box.
+
+**Flat** — the lowest-common-denominator format:
 
 ```json
 {
@@ -42,6 +44,25 @@ Accepted JSON shape:
   "app.css": "app.d4e5f6.css"
 }
 ```
+
+**Vite's full manifest** — what `vite build` emits when
+`build.manifest = true`. Use `AssetManifest::from_vite_json(...)`:
+
+```json
+{
+  "src/main.js": {
+    "file": "assets/main.4889e940.js",
+    "src": "src/main.js",
+    "isEntry": true,
+    "imports": ["_shared.83069a53.js"],
+    "css":     ["assets/main.b82dbe22.css"]
+  }
+}
+```
+
+We reduce each entry to its `file` field; `resolve("src/main.js")`
+returns the hashed JS URL. CSS / imports / dynamic assets aren't
+surfaced separately yet — coming in a follow-up.
 
 Errors are `KickError`-typed: `RK_C_IO` (read failure), `RK_C_PARSE`
 (bad JSON), `RK_C_UNKNOWN_ASSET` (key not in manifest, hint includes
