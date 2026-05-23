@@ -247,10 +247,47 @@ app holds a port, the next restart may briefly see `EADDRINUSE`
 until the OS reaps it. A future cleanup will use `taskkill /T`
 or `shared_child`.
 
+### `cargo kick check`
+
+Lint a kick-rs project for common misconfigurations the compiler
+doesn't catch. Useful as a CI gate after running generators.
+
+```bash
+cargo kick check
+# kick-rs check: ✓ clean
+# (exit 0)
+
+# … or, when something's wrong:
+# kick-rs check: 1 finding(s)
+#
+#   [RK_K_UNMOUNTED_MODULE] module `orphan` is declared in src/modules/mod.rs
+#       but not mounted in src/main.rs (expected `.module(modules::orphan::define())`)
+#       → /path/to/my-app/src/main.rs
+# (exit 1)
+```
+
+Lints today:
+
+| Code                              | What it catches                                              |
+|-----------------------------------|--------------------------------------------------------------|
+| `RK_K_UNMOUNTED_MODULE`           | `pub mod X;` exists but `main.rs` doesn't call `.module(modules::X::define())` |
+| `RK_K_STALE_PUB_MOD`              | `pub mod X;` whose `src/modules/X/` directory (or `.rs` file) doesn't exist |
+| `RK_K_UNREGISTERED_SERVICE`       | `#[service] pub struct Foo` in a file but no `.service::<Foo>()` in parent `mod.rs` |
+| `RK_K_UNREGISTERED_CONTRIBUTOR`   | `#[contributor] pub async fn Foo` in a file but no `.contribute(Foo)` in parent `mod.rs` |
+
+Pure-text scanners — no `cargo check` invocation, no `syn` parse.
+Recognizes the shapes the scaffold + `cargo kick g` produce; exotic
+hand-written wiring may slip through.
+
+Flags:
+
+- `--path <PATH>` — override project-root detection.
+
 ## Status
 
 `new`, `g module`, `g service`, `g contributor`, `add`, `info`,
-`dev` today. Planned: `check`.
+`dev`, `check` today. Everything from the SPEC's CLI surface is
+shipped.
 
 ## License
 
