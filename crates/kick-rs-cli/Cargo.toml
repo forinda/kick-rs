@@ -1,6 +1,6 @@
 [package]
 name        = "kick-rs-cli"
-version     = "0.1.0"
+version     = "0.1.1"
 description = "`cargo kick` subcommand — scaffold (today), dev / generate / add (planned)"
 readme      = "README.md"
 edition.workspace      = true

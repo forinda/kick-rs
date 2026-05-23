@@ -645,7 +645,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kick-rs-assets",
  "kick-rs-config",
@@ -656,7 +656,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-assets"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kick-rs-assets-macros",
  "kick-rs-core",
@@ -667,7 +667,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-assets-macros"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -677,7 +677,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "notify",
@@ -688,7 +688,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-config"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "kick-rs-core",
  "serde",
@@ -699,7 +699,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "serde",
@@ -711,7 +711,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-http"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "axum",
@@ -732,7 +732,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-macros"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "axum",
  "kick-rs-core",
