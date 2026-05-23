@@ -107,10 +107,18 @@ where
 ///   `Deps = (HeaderMap,)` and read request data without a separate
 ///   extractor.
 ///
+/// `bypass_prefixes` is the set of URL-path prefixes whose requests
+/// should *skip* the pipeline entirely. Bootstrap aggregates this from
+/// every HTTP plugin's `bypass_contributor_paths()` so framework-owned
+/// routes (`/openapi.json`, `/__debug`, embedded assets) don't 500
+/// when the app's user contributors require headers those framework
+/// routes can't provide.
+///
 /// Install via [`Bootstrap`](crate::Bootstrap) — direct use is for
 /// adopters wiring axum manually.
 pub async fn contributors_middleware(
     pipeline: Arc<ContributorPipeline>,
+    bypass_prefixes: Arc<Vec<String>>,
     mut req: Request,
     next: Next,
 ) -> Result<Response, HttpError> {
@@ -127,6 +135,20 @@ pub async fn contributors_middleware(
                 .with_hint("Bootstrap installs `Extension(Container)` before this layer"),
             )
         })?;
+
+    // Path-bypass: framework-owned routes (registered by plugins via
+    // `bypass_contributor_paths`) skip the pipeline. Still insert an
+    // *empty* ContributorStore so handlers that pull `Ctx<T>` on a
+    // bypassed path get a clear "missing contributor" error rather
+    // than `RK_H_NO_CONTRIBUTOR_STORE`. Framework routes don't pull
+    // Ctx<T>, so this branch is a no-op for the cases we care about.
+    let path = req.uri().path();
+    let bypass = bypass_prefixes.iter().any(|p| starts_with_prefix(path, p));
+    if bypass {
+        let store = ContributorStore::with_container(container);
+        req.extensions_mut().insert(store);
+        return Ok(next.run(req).await);
+    }
 
     // Snapshot the request's surface bits so contributors can read them
     // via the typed Deps tuple. Cloning is cheap — HeaderMap, Method,
@@ -147,4 +169,17 @@ pub async fn contributors_middleware(
     pipeline.run(&mut store).await.map_err(HttpError::from)?;
     req.extensions_mut().insert(store);
     Ok(next.run(req).await)
+}
+
+/// Prefix-match with one subtlety: `/foo` matches `/foo`, `/foo/`,
+/// and `/foo/bar` — but NOT `/foobar`. Otherwise a registered
+/// `/static` would bleed into a user route `/staticconfig`.
+fn starts_with_prefix(path: &str, prefix: &str) -> bool {
+    if path == prefix {
+        return true;
+    }
+    if let Some(rest) = path.strip_prefix(prefix) {
+        return rest.starts_with('/');
+    }
+    false
 }

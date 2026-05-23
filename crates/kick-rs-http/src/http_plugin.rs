@@ -71,4 +71,22 @@ pub trait HttpPlugin: Plugin {
     fn middleware(&self) -> Vec<crate::MiddlewareEntry> {
         Vec::new()
     }
+
+    /// Path prefixes the contributor pipeline should skip for routes
+    /// this plugin owns.
+    ///
+    /// The default is empty — user-mounted modules always go through
+    /// the contributor chain so request-scoped deps (auth, tenant,
+    /// trace id) are populated. Framework-owned plugins (OpenAPI,
+    /// DevTools, Assets) override this so their routes don't 500
+    /// when the adopter's contributors require headers the framework
+    /// route can't supply (think `LoadTenant` requiring
+    /// `x-tenant-slug` — that contributor's not relevant for
+    /// `GET /openapi.json`).
+    ///
+    /// Matching is prefix-based: an entry of `/static` matches both
+    /// `/static` and `/static/app.js`.
+    fn bypass_contributor_paths(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
