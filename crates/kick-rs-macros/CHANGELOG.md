@@ -10,6 +10,12 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-macros-v0.1.0-alpha.4...kick-rs-macros-v0.1.0) - 2026-05-23
+
+### Other
+
+- *(release)* graduate all crates from 0.1.0-alpha.X to 0.1.0
+
 ## [0.1.0-alpha.4](https://github.com/forinda/kick-rs/compare/kick-rs-macros-v0.1.0-alpha.3...kick-rs-macros-v0.1.0-alpha.4) - 2026-05-23
 
 ### Other

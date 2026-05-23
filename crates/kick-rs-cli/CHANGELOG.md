@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-cli-v0.1.0-alpha.4...kick-rs-cli-v0.1.0) - 2026-05-23
+
+### Added
+
+- *(cli)* cargo kick check — lint a project for misconfigurations
+
+### Fixed
+
+- *(cli)* cargo kick dev — kill the whole process tree on restart
+
+### Other
+
+- *(release)* graduate all crates from 0.1.0-alpha.X to 0.1.0
+
 ## [0.1.0-alpha.4](https://github.com/forinda/kick-rs/compare/kick-rs-cli-v0.1.0-alpha.3...kick-rs-cli-v0.1.0-alpha.4) - 2026-05-23
 
 ### Added

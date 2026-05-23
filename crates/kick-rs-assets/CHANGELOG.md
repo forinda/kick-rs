@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0-alpha.3...kick-rs-assets-v0.1.0) - 2026-05-23
+
+### Added
+
+- *(assets)* AssetManifest::from_vite_json — accept vite's full manifest shape
+
+### Other
+
+- *(release)* graduate all crates from 0.1.0-alpha.X to 0.1.0
+
 ## [0.1.0-alpha.3](https://github.com/forinda/kick-rs/compare/kick-rs-assets-v0.1.0-alpha.2...kick-rs-assets-v0.1.0-alpha.3) - 2026-05-23
 
 ### Added

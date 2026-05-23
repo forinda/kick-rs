@@ -11,6 +11,16 @@ Conventional Commits. See [`RELEASE.md`](../../RELEASE.md) for the flow.
 
 ## [Unreleased]
 
+## [0.1.0](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.6...kick-rs-v0.1.0) - 2026-05-23
+
+### Added
+
+- *(examples)* bundle static assets into users-api via AssetsPlugin
+
+### Other
+
+- *(release)* graduate all crates from 0.1.0-alpha.X to 0.1.0
+
 ## [0.1.0-alpha.6](https://github.com/forinda/kick-rs/compare/kick-rs-v0.1.0-alpha.5...kick-rs-v0.1.0-alpha.6) - 2026-05-23
 
 ### Other
