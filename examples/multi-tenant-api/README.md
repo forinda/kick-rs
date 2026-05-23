@@ -77,6 +77,21 @@ curl http://localhost:3001/posts
 The framework's `LoadTenant`/`LoadTenantDb` errors map to RFC 7807
 problem-details JSON automatically via `HttpError`.
 
+## OpenAPI
+
+Each handler carries a `#[utoipa::path(...)]` annotation; the
+`posts` module registers them with `.openapi_paths(paths!(list,
+show, create, delete))`. At boot, `OpenApiPlugin::from_modules(...)`
+walks the module tree and serves the spec:
+
+```bash
+curl -s http://localhost:3001/openapi.json | jq .info
+```
+
+The spec describes the per-tenant CRUD surface; the `X-Tenant-Slug`
+header routing happens via `LoadTenant`/`LoadTenantDb` and isn't
+modeled in the OpenAPI document.
+
 ## Layout
 
 ```

@@ -946,7 +946,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.5"
 dependencies = [
  "kick-rs-config",
  "kick-rs-core",
@@ -956,7 +956,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-config"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 dependencies = [
  "kick-rs-core",
  "serde",
@@ -966,7 +966,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-core"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 dependencies = [
  "async-trait",
  "serde",
@@ -977,7 +977,7 @@ dependencies = [
 
 [[package]]
 name = "kick-rs-http"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 dependencies = [
  "async-trait",
  "axum",
@@ -991,12 +991,13 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "utoipa",
  "uuid",
 ]
 
 [[package]]
 name = "kick-rs-macros"
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.3"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -1147,6 +1148,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "utoipa",
  "uuid",
 ]
 
@@ -2241,6 +2243,30 @@ name = "utf8_iter"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
+
+[[package]]
+name = "utoipa"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bde15df68e80b16c7d16b9616e80770ad158988daa56a27dccd1e55558b0160"
+dependencies = [
+ "indexmap",
+ "serde",
+ "serde_json",
+ "utoipa-gen",
+]
+
+[[package]]
+name = "utoipa-gen"
+version = "5.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ba0b99ee52df3028635d93840c797102da61f8a7bb3cf751032455895b52ef8"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+ "uuid",
+]
 
 [[package]]
 name = "uuid"

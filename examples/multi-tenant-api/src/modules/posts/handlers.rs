@@ -14,18 +14,21 @@ use kick_rs::{Ctx, HttpError, HttpResult, KickError};
 use uuid::Uuid;
 
 fn db_err(e: sqlx::Error) -> HttpError {
-    HttpError::from(
-        KickError::new("RK_A_DB", format!("postgres error: {e}"))
-            .with_source(e),
-    )
+    HttpError::from(KickError::new("RK_A_DB", format!("postgres error: {e}")).with_source(e))
 }
 
 fn not_found() -> HttpError {
-    HttpError::from(
-        KickError::new("RK_A_POST_NOT_FOUND", "post not found"),
-    )
+    HttpError::from(KickError::new("RK_A_POST_NOT_FOUND", "post not found"))
 }
 
+#[utoipa::path(
+    get,
+    path = "/posts",
+    responses(
+        (status = 200, description = "List posts for the current tenant", body = [Post]),
+    ),
+    tag = "posts",
+)]
 pub async fn list(db: Ctx<TenantDb>) -> HttpResult<Json<Vec<Post>>> {
     let rows = sqlx::query_as::<_, Post>(
         "SELECT id, title, body, created_at FROM posts ORDER BY created_at DESC",
@@ -36,20 +39,35 @@ pub async fn list(db: Ctx<TenantDb>) -> HttpResult<Json<Vec<Post>>> {
     Ok(Json(rows))
 }
 
-pub async fn show(
-    Path(id): Path<Uuid>,
-    db: Ctx<TenantDb>,
-) -> HttpResult<Json<Post>> {
-    let row = sqlx::query_as::<_, Post>(
-        "SELECT id, title, body, created_at FROM posts WHERE id = $1",
-    )
-    .bind(id)
-    .fetch_optional(db.pool())
-    .await
-    .map_err(db_err)?;
+#[utoipa::path(
+    get,
+    path = "/posts/{id}",
+    params(("id" = Uuid, Path, description = "post id")),
+    responses(
+        (status = 200, description = "Post",      body = Post),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "posts",
+)]
+pub async fn show(Path(id): Path<Uuid>, db: Ctx<TenantDb>) -> HttpResult<Json<Post>> {
+    let row =
+        sqlx::query_as::<_, Post>("SELECT id, title, body, created_at FROM posts WHERE id = $1")
+            .bind(id)
+            .fetch_optional(db.pool())
+            .await
+            .map_err(db_err)?;
     row.map(Json).ok_or_else(not_found)
 }
 
+#[utoipa::path(
+    post,
+    path = "/posts",
+    request_body = CreatePost,
+    responses(
+        (status = 201, description = "Created", body = Post),
+    ),
+    tag = "posts",
+)]
 pub async fn create(
     db: Ctx<TenantDb>,
     Json(body): Json<CreatePost>,
@@ -60,23 +78,28 @@ pub async fn create(
         body: body.body,
         created_at: Utc::now(),
     };
-    sqlx::query(
-        "INSERT INTO posts (id, title, body, created_at) VALUES ($1, $2, $3, $4)",
-    )
-    .bind(post.id)
-    .bind(&post.title)
-    .bind(&post.body)
-    .bind(post.created_at)
-    .execute(db.pool())
-    .await
-    .map_err(db_err)?;
+    sqlx::query("INSERT INTO posts (id, title, body, created_at) VALUES ($1, $2, $3, $4)")
+        .bind(post.id)
+        .bind(&post.title)
+        .bind(&post.body)
+        .bind(post.created_at)
+        .execute(db.pool())
+        .await
+        .map_err(db_err)?;
     Ok((StatusCode::CREATED, Json(post)))
 }
 
-pub async fn delete(
-    Path(id): Path<Uuid>,
-    db: Ctx<TenantDb>,
-) -> HttpResult<StatusCode> {
+#[utoipa::path(
+    delete,
+    path = "/posts/{id}",
+    params(("id" = Uuid, Path, description = "post id")),
+    responses(
+        (status = 204, description = "Deleted"),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "posts",
+)]
+pub async fn delete(Path(id): Path<Uuid>, db: Ctx<TenantDb>) -> HttpResult<StatusCode> {
     let res = sqlx::query("DELETE FROM posts WHERE id = $1")
         .bind(id)
         .execute(db.pool())

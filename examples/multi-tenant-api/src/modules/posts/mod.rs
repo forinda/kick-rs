@@ -6,7 +6,7 @@
 pub mod handlers;
 pub mod model;
 
-use kick_rs::{define_module, Module};
+use kick_rs::{define_module, paths, Module};
 
 pub fn define() -> Module {
     define_module("posts")
@@ -15,5 +15,11 @@ pub fn define() -> Module {
         .get("/:id", handlers::show)
         .post("/", handlers::create)
         .delete("/:id", handlers::delete)
+        .openapi_paths(paths!(
+            handlers::list,
+            handlers::show,
+            handlers::create,
+            handlers::delete
+        ))
         .build()
 }
