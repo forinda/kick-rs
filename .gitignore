@@ -14,6 +14,9 @@ crates/**/Cargo.lock
 *.swp
 .DS_Store
 
+# Claude Code agent state (per-checkout local working directory)
+.claude/
+
 # Env files (never commit secrets)
 .env
 .env.*.local
